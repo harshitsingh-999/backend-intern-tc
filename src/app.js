@@ -2,8 +2,7 @@ import Server from './common/server.js';
 import routes from './routes.js';
 import dotenv from 'dotenv';
 import { createDatabaseIfNotExists } from './config/db.init.js';
-import { syncModels } from './models/index.js';
-import { APP_VERSION } from '../version.js';
+import syncModels from './api/v1/Models/modelSync.js';
 
 dotenv.config();
 
@@ -24,10 +23,9 @@ let server;
     server.handleError();
     server.listen(port);
 
-    console.log(`✅ Running App Version: ${APP_VERSION}`);
 
     console.log(`🚀 Server running on port ${port}`);
-    console.log(`Task Management Backend Booting..`)
+    console.log(`Internship Backend Booting..`)
     console.log("🕒 Boot Time:", new Date().toISOString());
 
   } catch (err) {

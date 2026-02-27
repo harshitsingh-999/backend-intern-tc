@@ -1,17 +1,14 @@
 import express from "express";
-import helmet from "helmet";
 import morgan from "morgan";
 import cors from "cors";
 import http from "http";
 import path from "path";
 import cookieParser from "cookie-parser";
-import dotenv from "dotenv";
-
+import helmet from "helmet";
 import logger from "../helper/logger.js";
 import rootPath from "../helper/rootPath.js";
 import responseEmmiter from "../helper/response.js";
 
-dotenv.config();
 
 class ExpressServer {
   constructor() {

@@ -1,0 +1,66 @@
+// src/api/v1/Models/associations.js
+
+import User from './user.js';
+import Role from './role.js';
+import Department from './department.js';
+import Trainee from './trainee.js';
+import Project from './project.js';
+import Task from './task.js';
+import Attendance from './attendance.js';
+import Evaluation from './evaluation.js';
+import Feedback from './feedback.js';
+
+const setupAssociations = () => {
+
+  // ===== USER RELATIONS =====
+  User.belongsTo(Role, { foreignKey: 'role_id' });
+  Role.hasMany(User, { foreignKey: 'role_id' });
+
+  User.belongsTo(Department, { foreignKey: 'dept_id' });
+  Department.hasMany(User, { foreignKey: 'dept_id' });
+
+
+  // ===== TRAINEE RELATIONS =====
+  Trainee.belongsTo(User, { foreignKey: 'user_id' });
+  User.hasOne(Trainee, { foreignKey: 'user_id' });
+
+  Trainee.belongsTo(User, { as: 'buddy', foreignKey: 'buddy_id' });
+  Trainee.belongsTo(User, { as: 'manager', foreignKey: 'manager_id' });
+
+
+  // ===== PROJECT RELATIONS =====
+  Project.belongsTo(Department, { foreignKey: 'dept_id' });
+  Department.hasMany(Project, { foreignKey: 'dept_id' });
+
+  Project.belongsTo(User, { as: 'manager', foreignKey: 'manager_id' });
+  User.hasMany(Project, { foreignKey: 'manager_id' });
+
+
+  // ===== TASK RELATIONS =====
+  Task.belongsTo(Project, { foreignKey: 'project_id' });
+  Project.hasMany(Task, { foreignKey: 'project_id' });
+
+  Task.belongsTo(User, { as: 'assignee', foreignKey: 'assigned_to' });
+  Task.belongsTo(User, { as: 'assigner', foreignKey: 'assigned_by' });
+
+
+  // ===== ATTENDANCE =====
+  Attendance.belongsTo(Trainee, { foreignKey: 'trainee_id' });
+  Trainee.hasMany(Attendance, { foreignKey: 'trainee_id' });
+
+
+  // ===== EVALUATION =====
+  Evaluation.belongsTo(Trainee, { foreignKey: 'trainee_id' });
+  Trainee.hasMany(Evaluation, { foreignKey: 'trainee_id' });
+
+  Evaluation.belongsTo(User, { as: 'evaluator', foreignKey: 'evaluator_id' });
+
+
+  // ===== FEEDBACK =====
+  Feedback.belongsTo(Trainee, { foreignKey: 'trainee_id' });
+  Trainee.hasMany(Feedback, { foreignKey: 'trainee_id' });
+
+  Feedback.belongsTo(User, { as: 'buddy', foreignKey: 'buddy_id' });
+};
+
+export default setupAssociations;
