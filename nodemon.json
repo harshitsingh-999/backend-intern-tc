@@ -2,6 +2,6 @@
   "watch": ["src"],
   "ext": "js,json",
   "ignore": ["node_modules", "logs"],
-  "exec": "node index.js",
+  "exec": "node src/app.js",
   "delay": "200"
 }

@@ -3,7 +3,8 @@ logs/
 .env
 uploads/
 .vscode/
-package-lock.json
+package-lock.json/
+package.json?/
 logs/
 
 
