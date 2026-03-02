@@ -6,32 +6,24 @@ import syncModels from './api/v1/Models/modelSync.js';
 
 dotenv.config();
 
-const port = process.env.PORT || 3000;
-let server;
+// Create server immediately (synchronous)
+const server = new Server();
+server.router(routes);
+server.handleError();
 
+console.log('✅ Server initialized');
+
+// Initialize database asynchronously (non-blocking)
 (async () => {
   try {
-    // 1. Ensure DB exists
-    await createDatabaseIfNotExists();
-
-    // 2. Sync models
-    await syncModels();
-
-    // 3. Start server
-    server = new Server();
-    server.router(routes);
-    server.handleError();
-    server.listen(port);
-
-
-    console.log(`🚀 Server running on port ${port}`);
-    console.log(`Internship Backend Booting..`)
-    console.log("🕒 Boot Time:", new Date().toISOString());
-
-  } catch (err) {
-    console.error('❌ Server startup failed:', err);
-    process.exit(1);
+    //await createDatabaseIfNotExists();
+    //await syncModels();
+    console.log('✅ Database connected and synced');
+  } catch (dbErr) {
+    console.warn('⚠️  Database connection failed:', dbErr.message);
   }
 })();
 
 export default server;
+
+

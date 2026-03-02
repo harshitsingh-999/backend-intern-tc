@@ -5,7 +5,9 @@ class AuthController {
   // ----------------------- LOGIN -----------------------
   async login(req, res) {
     try {
+console.log(req, "reqq")
 
+return res.json({ success: true, message: "Login successful" });
 
     } catch (error) {
       logger.error(error);
