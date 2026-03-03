@@ -1,5 +1,7 @@
-// src/config/db.config.js
+import dotenv from "dotenv";
 import Sequelize from "sequelize";
+
+dotenv.config();
 
 const sequelize = new Sequelize(
   process.env.DBNAME,
@@ -11,12 +13,12 @@ const sequelize = new Sequelize(
     logging: false,
     port: 3306,
 
-    timezone: "+05:30", // ✅ IST timezone
+    timezone: "+05:30", // ? IST timezone
 
     dialectOptions: {
       dateStrings: true,
       typeCast: true,
-      timezone: "+05:30" // ✅ Force MySQL timezone
+      timezone: "+05:30" // ? Force MySQL timezone
     },
 
     pool: {
