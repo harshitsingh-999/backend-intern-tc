@@ -1,8 +1,12 @@
 'use strict';
+const bcrypt = require('bcryptjs');
 
 /** @type {import('sequelize-cli').Migration} */
 module.exports = {
   async up(queryInterface, Sequelize) {
+    const adminPasswordHash = await bcrypt.hash('admin123', 10);
+    const managerPasswordHash = await bcrypt.hash('manager123', 10);
+
     // First create roles
     await queryInterface.bulkInsert('roles', [
       {
@@ -36,7 +40,7 @@ module.exports = {
       {
         name: 'Admin User',
         email: 'admin@teamcomputers.com',
-        password: 'admin123',
+        password: adminPasswordHash,
         role_id: 1,
         is_active: 1,
         createdAt: new Date(),
@@ -45,7 +49,7 @@ module.exports = {
       {
         name: 'Manager User',
         email: 'manager@teamcomputers.com',
-        password: 'manager123',
+        password: managerPasswordHash,
         role_id: 2,
         is_active: 1,
         createdAt: new Date(),

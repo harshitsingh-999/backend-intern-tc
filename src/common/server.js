@@ -13,6 +13,15 @@ import responseEmmiter from "../helper/response.js";
 class ExpressServer {
   constructor() {
     this.app = express();
+    const envOrigins = (process.env.FRONTEND_URL || "")
+      .split(",")
+      .map((origin) => origin.trim())
+      .filter(Boolean);
+    const allowedOrigins = new Set([
+      "http://localhost:5173",
+      "http://localhost:5174",
+      ...envOrigins
+    ]);
 
     // Security
     this.app.use(
@@ -31,7 +40,12 @@ class ExpressServer {
     // CORS
     this.app.use(
       cors({
-        origin: process.env.FRONTEND_URL || "http://localhost:5173",
+        origin: (origin, callback) => {
+          // Allow non-browser clients and same-origin calls.
+          if (!origin) return callback(null, true);
+          if (allowedOrigins.has(origin)) return callback(null, true);
+          return callback(new Error(`CORS blocked for origin: ${origin}`));
+        },
         credentials: true
       })
     );
