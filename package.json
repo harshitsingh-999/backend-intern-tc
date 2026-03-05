@@ -2,10 +2,10 @@
   "name": "intern-management-system",
   "version": "1.0.0",
   "description": "Intern Management Backend API",
-  "main": "src/app.js",
+  "main": "index.js",
   "type": "module",
   "scripts": {
-    "start": "node src/app.js",
+    "start": "node index.js",
     "dev": "nodemon",
     "test": "echo \"No tests specified\" && exit 1"
   },

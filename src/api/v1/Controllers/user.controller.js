@@ -131,6 +131,31 @@ export const loginUser = async (req, res) => {
   }
 };
 
+export const getUserStats = async (req, res) => {
+  try {
+    const [activeInterns, buddiesAssigned, managers] = await Promise.all([
+      User.count({ where: { role_id: 4, is_active: 1 } }),
+      User.count({ where: { role_id: 3, is_active: 1 } }),
+      User.count({ where: { role_id: 2, is_active: 1 } })
+    ]);
+
+    return res.status(200).json({
+      success: true,
+      data: {
+        activeInterns,
+        buddiesAssigned,
+        managers
+      }
+    });
+  } catch (error) {
+    logger.error(error);
+    return res.status(500).json({
+      success: false,
+      message: "Internal Server Error"
+    });
+  }
+};
+
 export const forgotPassword = async (req, res) => {
   return res.status(501).json({
     success: false,
