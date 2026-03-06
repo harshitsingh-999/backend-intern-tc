@@ -1,3 +1,18 @@
+// import express from "express";
+// import { authenticate } from "../../../middlewares/auth.middleware.js";
+// import { getInternTasks, submitTaskProgress } from "../Controllers/manager.controller.js";
+
+// const router = express.Router();
+
+// router.use(authenticate);
+
+// router.get("/tasks",      getInternTasks);
+// router.put("/tasks/:id",  submitTaskProgress);
+
+// export default router;
+
+
+
 import express from "express";
 import { authenticate } from "../../../middlewares/auth.middleware.js";
 import { requireRole } from "../../../middlewares/role.middleware.js";
