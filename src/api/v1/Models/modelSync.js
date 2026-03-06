@@ -12,6 +12,7 @@ import './task.js';
 import './attendance.js';
 import './evaluation.js';
 import './feedback.js';
+import './taskSubmission.js';
 import sequelize from '../../../config/db.config.js';
 
 const syncModels = async () => {

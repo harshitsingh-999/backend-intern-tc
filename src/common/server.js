@@ -64,7 +64,7 @@ class ExpressServer {
   registerStaticRoutes() {
     this.app.get("/api/uploads/:type/:id/:filename", (req, res) => {
       const { type, id, filename } = req.params;
-      const allowedTypes = ["tickets"];
+      const allowedTypes = ["tickets", "task-submissions"];
 
       if (!allowedTypes.includes(type)) {
         return res.status(400).json({
@@ -73,7 +73,8 @@ class ExpressServer {
         });
       }
 
-      const uploadsRoot = path.join(rootPath, "src/uploads");
+      // rootPath already points to /src, so static files live under /src/uploads.
+      const uploadsRoot = path.join(rootPath, "uploads");
       const filePath = path.join(uploadsRoot, type, id, filename);
 
       logger.info(`📤 Serving file: ${filePath}`);

@@ -7,6 +7,7 @@ import {
   createTask,
   updateTask,
   deleteTask,
+  getTaskSubmissions,
   assignLeave,
   getInternLeaves,
   getAllInterns,
@@ -23,6 +24,7 @@ router.get("/tasks", getMyTasks);
 router.post("/tasks", createTask);
 router.put("/tasks/:id", updateTask);
 router.delete("/tasks/:id", deleteTask);
+router.get("/tasks/:id/submissions", getTaskSubmissions);
 router.post("/leaves", assignLeave);
 router.get("/leaves/:trainee_user_id", getInternLeaves);
 router.get("/all-interns", getAllInterns);

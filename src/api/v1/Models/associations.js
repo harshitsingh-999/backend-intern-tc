@@ -6,6 +6,7 @@ import Department from './department.js';
 import Trainee from './trainee.js';
 import Project from './project.js';
 import Task from './task.js';
+import TaskSubmission from './taskSubmission.js';
 import Attendance from './attendance.js';
 import Evaluation from './evaluation.js';
 import Feedback from './feedback.js';
@@ -42,6 +43,11 @@ const setupAssociations = () => {
 
   Task.belongsTo(User, { as: 'assignee', foreignKey: 'assigned_to' });
   Task.belongsTo(User, { as: 'assigner', foreignKey: 'assigned_by' });
+  Task.hasMany(TaskSubmission, { foreignKey: 'task_id', as: 'submissions' });
+
+  TaskSubmission.belongsTo(Task, { foreignKey: 'task_id' });
+  TaskSubmission.belongsTo(User, { as: 'intern', foreignKey: 'submitted_by' });
+  User.hasMany(TaskSubmission, { foreignKey: 'submitted_by' });
 
 
   // ===== ATTENDANCE =====

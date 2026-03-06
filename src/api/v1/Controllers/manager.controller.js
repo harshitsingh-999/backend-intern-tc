@@ -3,6 +3,7 @@ import Task from "../Models/task.js";
 import User from "../Models/user.js";
 import Trainee from "../Models/trainee.js";
 import Attendance from "../Models/attendance.js";
+import TaskSubmission from "../Models/taskSubmission.js";
 import logger from "../../../helper/logger.js";
 
 // GET /api/v1/manager/interns - interns mapped to logged-in manager
@@ -185,6 +186,39 @@ export const deleteTask = async (req, res) => {
 
     await task.destroy();
     return res.status(200).json({ success: true, message: "Task deleted" });
+  } catch (error) {
+    logger.error(error);
+    return res.status(500).json({ success: false, message: "Internal Server Error" });
+  }
+};
+
+// GET /api/v1/manager/tasks/:id/submissions - view intern submissions for a task
+export const getTaskSubmissions = async (req, res) => {
+  try {
+    const task = await Task.findOne({
+      where: { id: req.params.id, assigned_by: req.user.id }
+    });
+    if (!task) {
+      return res.status(404).json({ success: false, message: "Task not found or not yours" });
+    }
+
+    const submissions = await TaskSubmission.findAll({
+      where: { task_id: task.id },
+      include: [{ model: User, as: "intern", attributes: ["id", "name", "email"] }],
+      order: [["createdAt", "DESC"]]
+    });
+
+    const mapped = submissions.map((submission) => {
+      const raw = submission.toJSON();
+      return {
+        ...raw,
+        file_url: raw.file_name
+          ? `${req.protocol}://${req.get("host")}/api/uploads/task-submissions/${task.id}/${encodeURIComponent(raw.file_name)}`
+          : null
+      };
+    });
+
+    return res.status(200).json({ success: true, data: mapped });
   } catch (error) {
     logger.error(error);
     return res.status(500).json({ success: false, message: "Internal Server Error" });
