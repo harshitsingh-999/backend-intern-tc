@@ -59,11 +59,20 @@ const getUsers = async (req, res) => {
     const users = await User.findAll({
       attributes: { exclude: ['password'] },
       include: [
-        { model: Role },
-        { model: Department }
+        { model: Role, attributes: ['id', 'role_name'] },
+        { model: Department, attributes: ['id', 'dept_name'] }
       ]
     });
-    res.json({ success: true, users, message: "Users fetched successfully" });
+    const normalizedUsers = users.map((user) => {
+      const plainUser = user.toJSON();
+      return {
+        ...plainUser,
+        role: plainUser.role?.role_name || null,
+        department: plainUser.department?.dept_name || null
+      };
+    });
+
+    res.json({ success: true, users: normalizedUsers, message: "Users fetched successfully" });
   } catch (error) {
     logger.error(error);
     res.status(500).json({ success: false, message: "Error fetching users", error: error.message });

@@ -1,31 +1,25 @@
-
-import dotenv from "dotenv";
-
+// src/config/db.config.js
 import Sequelize from "sequelize";
-
+import dotenv from "dotenv";
 dotenv.config();
+
 
 const sequelize = new Sequelize(
   process.env.DBNAME,
   process.env.DBUSER,
   process.env.DBPASSWD,
   {
-    host: process.env.DB_HOST || 'localhost',
+    host: process.env.DB_HOST,
     dialect: "mysql",
     logging: false,
-    port: parseInt(process.env.DB_PORT) ||3306,
+    port: 3306,
 
-    timezone: "+05:30", // ? IST timezone
+    timezone: "+05:30", // ✅ IST timezone
 
     dialectOptions: {
       dateStrings: true,
       typeCast: true,
-      timezone: "+05:30",
-      authSwitchHandler: ({ pluginName, pluginData }, cb) => {
-        if (pluginName === 'caching_sha2_password') {
-          cb(null, Buffer.from(process.env.DBPASSWD + '\0'));
-        }
-      } // ? Force MySQL timezone
+      timezone: "+05:30" // ✅ Force MySQL timezone
     },
 
     pool: {

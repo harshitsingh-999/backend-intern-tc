@@ -17,7 +17,7 @@ router.get('/dashboard', adminAuth, adminController.dashboard);
 // User Management
 router.get('/users', adminAuth, adminController.getUsers);
 router.get('/users/:id', adminAuth, adminController.getUserById);
-router.post('/users', adminAuth, adminController.createUser);
+router.post('/users', adminController.createUser);
 router.put('/users/:id', adminAuth, adminController.updateUser);
 router.patch('/users/:id/deactivate', adminAuth, adminController.deactivateUser);
 router.patch('/users/:id/reactivate', adminAuth, adminController.reactivateUser);

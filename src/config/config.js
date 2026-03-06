@@ -2,9 +2,9 @@ require("dotenv").config();
 
 module.exports = {
   development: {
-    username: process.env.DB_USER || "root",
-    password: process.env.DB_PASSWORD || null,
-    database: process.env.DB_NAME || "intern_db",
+    username: process.env.DBUSER || "root",
+    password: process.env.DBPASSWD || null,
+    database: process.env.DBNAME || "intern_db",
     host: process.env.DB_HOST || "127.0.0.1",
     dialect: "mysql"
   }
