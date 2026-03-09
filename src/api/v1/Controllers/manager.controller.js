@@ -5,6 +5,7 @@ import Trainee from "../Models/trainee.js";
 import Attendance from "../Models/attendance.js";
 import TaskSubmission from "../Models/taskSubmission.js";
 import logger from "../../../helper/logger.js";
+import Evaluation from "../Models/evaluation.js";
 
 // GET /api/v1/manager/interns - interns mapped to logged-in manager
 export const getMyInterns = async (req, res) => {
@@ -284,3 +285,39 @@ export const getInternLeaves = async (req, res) => {
     return res.status(500).json({ success: false, message: "Internal Server Error" });
   }
 };
+// POST /api/v1/manager/evaluations
+export const createEvaluation = async (req, res) => {
+  try {
+    const { trainee_id, technical_skills, communication, teamwork, problem_solving, punctuality, comments } = req.body
+    if (!trainee_id) return res.status(400).json({ success: false, message: "trainee_id is required" })
+
+    const scores = [technical_skills, communication, teamwork, problem_solving, punctuality].map(Number)
+    const overall_score = (scores.reduce((a, b) => a + b, 0) / scores.length).toFixed(2)
+
+    const evaluation = await Evaluation.create({
+      trainee_id,
+      evaluator_id:    req.user.id,
+      evaluation_date: new Date().toISOString().split('T')[0],
+      technical_skills, communication, teamwork,
+      problem_solving, punctuality, overall_score, comments,
+    })
+    return res.status(201).json({ success: true, message: "Evaluation saved", data: evaluation })
+  } catch (error) {
+    logger.error(error)
+    return res.status(500).json({ success: false, message: "Internal Server Error" })
+  }
+}
+
+// GET /api/v1/manager/evaluations/:trainee_id
+export const getEvaluations = async (req, res) => {
+  try {
+    const evals = await Evaluation.findAll({
+      where: { trainee_id: req.params.trainee_id },
+      order: [['evaluation_date', 'DESC']],
+    })
+    return res.status(200).json({ success: true, data: evals })
+  } catch (error) {
+    logger.error(error)
+    return res.status(500).json({ success: false, message: "Internal Server Error" })
+  }
+}

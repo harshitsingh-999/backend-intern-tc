@@ -5,6 +5,8 @@ import User from "../Models/user.js";
 import TaskSubmission from "../Models/taskSubmission.js";
 import logger from "../../../helper/logger.js";
 import rootPath from "../../../helper/rootPath.js";
+import Trainee    from "../Models/trainee.js";
+import Evaluation from "../Models/evaluation.js";
 
 const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024;
 
@@ -119,6 +121,102 @@ export const submitAssignedTask = async (req, res) => {
         ...submission.toJSON(),
         file_url: buildSubmissionFileUrl(req, task.id, fileName)
       }
+    });
+  } catch (error) {
+    logger.error(error);
+    return res.status(500).json({ success: false, message: "Internal Server Error" });
+  }
+};
+// GET /api/v1/intern/evaluations
+export const getMyEvaluations = async (req, res) => {
+  try {
+    const trainee = await Trainee.findOne({ where: { user_id: req.user.id } })
+    if (!trainee) return res.status(200).json({ success: true, data: [] })
+
+    const evals = await Evaluation.findAll({
+      where: { trainee_id: trainee.id },
+      order: [['evaluation_date', 'DESC']],
+    })
+    return res.status(200).json({ success: true, data: evals })
+  } catch (error) {
+    logger.error(error)
+    return res.status(500).json({ success: false, message: "Internal Server Error" })
+  }
+}
+
+
+// GET /api/v1/intern/profile
+export const getMyProfile = async (req, res) => {
+  try {
+    const user = await User.findByPk(req.user.id, {
+      attributes: ["id", "name", "email", "phone", "address", "role_id"],
+    });
+    if (!user) {
+      return res.status(404).json({ success: false, message: "User not found" });
+    }
+    const trainee = await Trainee.findOne({ where: { user_id: req.user.id } });
+    return res.status(200).json({
+      success: true,
+      data: { user: user.toJSON(), trainee: trainee ? trainee.toJSON() : null },
+    });
+  } catch (error) {
+    logger.error(error);
+    return res.status(500).json({ success: false, message: "Internal Server Error" });
+  }
+};
+
+// PUT /api/v1/intern/profile
+export const updateMyProfile = async (req, res) => {
+  try {
+    const {
+      phone, address,
+      college_name, course, batch_year,
+      enrollment_date, expected_end_date,
+      gpa, certifications,
+    } = req.body;
+
+    await User.update(
+      {
+        ...(phone   !== undefined && { phone }),
+        ...(address !== undefined && { address }),
+      },
+      { where: { id: req.user.id } }
+    );
+
+    const existingTrainee = await Trainee.findOne({ where: { user_id: req.user.id } });
+
+    const traineeData = {
+      ...(college_name      !== undefined && { college_name }),
+      ...(course            !== undefined && { course }),
+      ...(batch_year        !== undefined && { batch_year: batch_year ? Number(batch_year) : null }),
+      ...(enrollment_date   !== undefined && { enrollment_date }),
+      ...(expected_end_date !== undefined && { expected_end_date }),
+      ...(gpa               !== undefined && { gpa }),
+      ...(certifications    !== undefined && { certifications }),
+    };
+
+    let trainee;
+    if (existingTrainee) {
+      await existingTrainee.update(traineeData);
+      trainee = existingTrainee;
+    } else {
+      trainee = await Trainee.create({
+        user_id: req.user.id,
+        current_status: "pending_approval",
+        enrollment_date: enrollment_date || new Date().toISOString().split("T")[0],
+        ...traineeData,
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "Profile updated successfully",
+      data: {
+        user: await User.findByPk(req.user.id, {
+          attributes: ["id", "name", "email", "phone", "address", "role_id"],
+        }),
+        trainee: trainee.toJSON(),
+      },
     });
   } catch (error) {
     logger.error(error);

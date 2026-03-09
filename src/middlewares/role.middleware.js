@@ -5,7 +5,7 @@ export const requireRole = (...allowedRoleIds) => {
     if (!req.user) {
       return res.status(401).json({ success: false, message: "Not authenticated" });
     }
-    if (!allowedRoleIds.includes(req.user.role_id)) {
+    if (!allowedRoleIds.includes(Number(req.user.role_id))) {
       return res.status(403).json({ success: false, message: "Access denied" });
     }
     next();
@@ -15,7 +15,7 @@ export const requireRole = (...allowedRoleIds) => {
 export const requireAdmin   = requireRole(1);
 export const requireManager = requireRole(1, 2);
 export const requireBuddy   = requireRole(1, 2, 3);
-
+export const requireIntern  = requireRole(1, 2, 3, 4);
 
 
 

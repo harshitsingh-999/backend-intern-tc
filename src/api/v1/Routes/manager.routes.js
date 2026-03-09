@@ -1,6 +1,7 @@
 import express from "express";
 import { authenticate } from "../../../middlewares/auth.middleware.js";
 import { requireManager } from "../../../middlewares/role.middleware.js";
+// import { createEvaluation, getEvaluations } from "../Controllers/manager.controller.js"
 import {
   getMyInterns,
   getMyTasks,
@@ -12,7 +13,9 @@ import {
   getInternLeaves,
   getAllInterns,
   getDashboardStats,
-  createIntern
+  createIntern,
+  createEvaluation,
+  getEvaluations
 } from "../Controllers/manager.controller.js";
 
 const router = express.Router();
@@ -30,5 +33,7 @@ router.get("/leaves/:trainee_user_id", getInternLeaves);
 router.get("/all-interns", getAllInterns);
 router.get("/stats", getDashboardStats);
 router.post("/interns", createIntern);
+router.post("/evaluations",            createEvaluation)
+router.get("/evaluations/:trainee_id", getEvaluations)
 
 export default router;
