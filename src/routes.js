@@ -1,6 +1,8 @@
 import authRoutes from "./api/v1/Routes/auth.route.js";
 import adminRoutes from "./api/v1/Routes/admin.js";
 import adminUserRoutes from "./api/v1/Routes/admin.user.routes.js";
+import superAdminRoutes from './api/v1/Routes/superAdmin.routes.js';
+
 
 const routes = (app) => {
   app.use("/api/v1/auth", authRoutes);
@@ -8,6 +10,7 @@ const routes = (app) => {
   // does not get intercepted by the generic /api/v1/admin router.
   app.use("/api/v1/admin/users", adminUserRoutes);
   app.use("/api/v1/admin", adminRoutes);
+  app.use('/api/v1/superadmin', superAdminRoutes);
 
   return app;
 };
