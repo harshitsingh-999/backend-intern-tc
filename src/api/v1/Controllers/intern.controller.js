@@ -3,6 +3,7 @@ import path from "path";
 import Task from "../Models/task.js";
 import User from "../Models/user.js";
 import TaskSubmission from "../Models/taskSubmission.js";
+import Attendance from "../Models/attendance.js";
 import logger from "../../../helper/logger.js";
 import rootPath from "../../../helper/rootPath.js";
 import Trainee    from "../Models/trainee.js";
@@ -218,6 +219,186 @@ export const updateMyProfile = async (req, res) => {
         trainee: trainee.toJSON(),
       },
     });
+  } catch (error) {
+    logger.error(error);
+    return res.status(500).json({ success: false, message: "Internal Server Error" });
+  }
+};
+// POST /api/v1/intern/leaves - intern applies for leave
+export const applyLeave = async (req, res) => {
+  try {
+    const trainee = await Trainee.findOne({ where: { user_id: req.user.id } });
+    if (!trainee) {
+      return res.status(404).json({ success: false, message: "Trainee record not found. Please complete your profile first." });
+    }
+
+    const { leave_date, leave_reason, leave_type = 'casual' } = req.body;
+    if (!leave_date) {
+      return res.status(400).json({ success: false, message: "leave_date is required" });
+    }
+
+    const validTypes = ['casual', 'sick', 'emergency', 'personal'];
+    if (!validTypes.includes(leave_type)) {
+      return res.status(400).json({ success: false, message: "leave_type must be one of: casual, sick, emergency, personal" });
+    }
+
+    // Check leave balance before applying
+    const year = new Date(leave_date).getFullYear();
+    const yearStart = `${year}-01-01`;
+    const yearEnd   = `${year}-12-31`;
+    const { Op } = await import('sequelize');
+
+    const usedLeaves = await Attendance.findAll({
+      where: {
+        trainee_id: trainee.id,
+        attendance_date: { [Op.between]: [yearStart, yearEnd] },
+        status: ['on_leave', 'pending_leave'],
+        leave_type,
+      }
+    });
+
+    const quota = leave_type === 'sick' ? 6 : leave_type === 'emergency' ? 3 : 12;
+    if (usedLeaves.length >= quota) {
+      return res.status(400).json({
+        success: false,
+        message: `${leave_type.charAt(0).toUpperCase() + leave_type.slice(1)} leave quota (${quota} days/year) exhausted`
+      });
+    }
+
+    // Check if a record already exists for this date
+    const existing = await Attendance.findOne({
+      where: { trainee_id: trainee.id, attendance_date: leave_date }
+    });
+
+    if (existing) {
+      if (existing.status === 'on_leave') {
+        return res.status(400).json({ success: false, message: "Leave already approved for this date" });
+      }
+      if (existing.status === 'pending_leave') {
+        return res.status(400).json({ success: false, message: "Leave request already pending for this date" });
+      }
+      if (existing.status === 'present') {
+        return res.status(400).json({ success: false, message: "You have already checked in on this date" });
+      }
+      await existing.update({ status: 'pending_leave', leave_reason: leave_reason || null, leave_type, remarks: null });
+      return res.status(200).json({ success: true, message: "Leave request submitted for approval", data: existing });
+    }
+
+    const record = await Attendance.create({
+      trainee_id: trainee.id,
+      attendance_date: leave_date,
+      status: 'pending_leave',
+      leave_reason: leave_reason || null,
+      leave_type,
+    });
+
+    return res.status(201).json({ success: true, message: "Leave request submitted for approval", data: record });
+  } catch (error) {
+    logger.error(error);
+    return res.status(500).json({ success: false, message: "Internal Server Error" });
+  }
+};
+
+// GET /api/v1/intern/leaves - intern views own leave history
+export const getMyLeaves = async (req, res) => {
+  try {
+    const trainee = await Trainee.findOne({ where: { user_id: req.user.id } });
+    if (!trainee) {
+      return res.status(200).json({ success: true, data: [] });
+    }
+
+    const leaves = await Attendance.findAll({
+      where: {
+        trainee_id: trainee.id,
+        status: ['pending_leave', 'on_leave', 'leave_rejected']
+      },
+      order: [['attendance_date', 'DESC']],
+    });
+
+    return res.status(200).json({ success: true, data: leaves });
+  } catch (error) {
+    logger.error(error);
+    return res.status(500).json({ success: false, message: "Internal Server Error" });
+  }
+};
+
+// DELETE /api/v1/intern/leaves/:id - cancel a pending leave request
+export const cancelLeave = async (req, res) => {
+  try {
+    const trainee = await Trainee.findOne({ where: { user_id: req.user.id } });
+    if (!trainee) {
+      return res.status(404).json({ success: false, message: "Trainee record not found" });
+    }
+
+    const record = await Attendance.findOne({
+      where: { id: req.params.id, trainee_id: trainee.id }
+    });
+
+    if (!record) {
+      return res.status(404).json({ success: false, message: "Leave request not found" });
+    }
+
+    if (record.status !== 'pending_leave') {
+      return res.status(400).json({
+        success: false,
+        message: record.status === 'on_leave'
+          ? "Cannot cancel an already approved leave. Contact your manager."
+          : "This leave request has already been processed."
+      });
+    }
+
+    await record.destroy();
+    return res.status(200).json({ success: true, message: "Leave request cancelled successfully" });
+  } catch (error) {
+    logger.error(error);
+    return res.status(500).json({ success: false, message: "Internal Server Error" });
+  }
+};
+
+// GET /api/v1/intern/leave-balance - get leave quota and used counts for current year
+export const getLeaveBalance = async (req, res) => {
+  try {
+    const trainee = await Trainee.findOne({ where: { user_id: req.user.id } });
+    if (!trainee) {
+      return res.status(200).json({
+        success: true,
+        data: {
+          year: new Date().getFullYear(),
+          casual:    { total: 12, used: 0, pending: 0, available: 12 },
+          sick:      { total: 6,  used: 0, pending: 0, available: 6 },
+          emergency: { total: 3,  used: 0, pending: 0, available: 3 },
+          personal:  { total: 12, used: 0, pending: 0, available: 12 },
+        }
+      });
+    }
+
+    const { Op } = await import('sequelize');
+    const year = new Date().getFullYear();
+    const yearStart = `${year}-01-01`;
+    const yearEnd   = `${year}-12-31`;
+
+    const allLeaves = await Attendance.findAll({
+      where: {
+        trainee_id: trainee.id,
+        attendance_date: { [Op.between]: [yearStart, yearEnd] },
+        status: ['on_leave', 'pending_leave'],
+        leave_type: ['casual', 'sick', 'emergency', 'personal'],
+      },
+      attributes: ['status', 'leave_type'],
+    });
+
+    const quotas = { casual: 2, sick: 2, emergency: 2, personal: 2 };
+    const balance = {};
+
+    for (const type of ['casual', 'sick', 'emergency', 'personal']) {
+      const typeLeaves = allLeaves.filter(l => l.leave_type === type);
+      const used    = typeLeaves.filter(l => l.status === 'on_leave').length;
+      const pending = typeLeaves.filter(l => l.status === 'pending_leave').length;
+      const total   = quotas[type];
+      balance[type] = { total, used, pending, available: Math.max(0, total - used - pending) };
+    }
+
+    return res.status(200).json({ success: true, data: { year, ...balance } });
   } catch (error) {
     logger.error(error);
     return res.status(500).json({ success: false, message: "Internal Server Error" });

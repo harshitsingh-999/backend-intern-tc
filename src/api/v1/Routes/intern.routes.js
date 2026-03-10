@@ -17,7 +17,7 @@ import express from "express";
 import { authenticate } from "../../../middlewares/auth.middleware.js";
 import { requireRole } from "../../../middlewares/role.middleware.js";
 // import { getMyAssignedTasks, submitAssignedTask } from "../Controllers/intern.controller.js";
-import { getMyAssignedTasks, submitAssignedTask, getMyEvaluations, getMyProfile, updateMyProfile } from "../Controllers/intern.controller.js"
+import { getMyAssignedTasks, submitAssignedTask, getMyEvaluations, getMyProfile, updateMyProfile, applyLeave, getMyLeaves, cancelLeave, getLeaveBalance } from '../Controllers/intern.controller.js'
 
 
 const router = express.Router();
@@ -30,6 +30,10 @@ router.post("/tasks/:id/submit", submitAssignedTask);
 router.get("/evaluations", getMyEvaluations);
 router.get("/profile", getMyProfile);
 router.put("/profile", updateMyProfile);
+router.post("/leaves", applyLeave);
+router.get("/leaves", getMyLeaves);
+router.delete("/leaves/:id", cancelLeave);
+router.get("/leave-balance", getLeaveBalance);
 
 
 // ---

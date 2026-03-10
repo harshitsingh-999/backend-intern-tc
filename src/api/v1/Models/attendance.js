@@ -17,12 +17,18 @@ const Attendance = sequelize.define('attendance', {
     allowNull: false
   },
   status: {
-    type: DataTypes.ENUM('present','absent','late','half_day','on_leave'),
+    type: DataTypes.ENUM('present','absent','late','half_day','on_leave','pending_leave','leave_rejected'),
     defaultValue: 'present'
   },
   check_in_time: DataTypes.TIME,
   check_out_time: DataTypes.TIME,
-  remarks: DataTypes.STRING(255)
+  remarks: DataTypes.STRING(255),
+  leave_reason: DataTypes.STRING(500),
+  leave_type: {
+    type: DataTypes.ENUM('casual', 'sick', 'emergency', 'personal'),
+    allowNull: true,
+    defaultValue: 'casual'
+  }
 }, {
   timestamps: true,
   indexes: [

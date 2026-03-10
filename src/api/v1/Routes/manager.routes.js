@@ -15,7 +15,10 @@ import {
   getDashboardStats,
   createIntern,
   createEvaluation,
-  getEvaluations
+  getEvaluations,
+  getPendingLeaveRequests,
+  respondToLeaveRequest,
+  getInternWorklog
 } from "../Controllers/manager.controller.js";
 
 const router = express.Router();
@@ -35,5 +38,8 @@ router.get("/stats", getDashboardStats);
 router.post("/interns", createIntern);
 router.post("/evaluations",            createEvaluation)
 router.get("/evaluations/:trainee_id", getEvaluations)
+router.get("/leave-requests",          getPendingLeaveRequests)
+router.put("/leave-requests/:id",      respondToLeaveRequest)
+router.get("/interns/:trainee_user_id/worklog", getInternWorklog)
 
 export default router;

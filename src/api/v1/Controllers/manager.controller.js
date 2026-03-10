@@ -321,3 +321,126 @@ export const getEvaluations = async (req, res) => {
     return res.status(500).json({ success: false, message: "Internal Server Error" })
   }
 }
+// GET /api/v1/manager/leave-requests - see all pending leave requests from interns
+export const getPendingLeaveRequests = async (req, res) => {
+  try {
+    // Get all trainees under this manager
+    const trainees = await Trainee.findAll({
+      where: { manager_id: req.user.id },
+      include: [{ model: User, attributes: ['id', 'name', 'email'] }]
+    });
+
+    if (!trainees.length) {
+      return res.status(200).json({ success: true, data: [] });
+    }
+
+    const traineeIds = trainees.map(t => t.id);
+
+    const requests = await Attendance.findAll({
+      where: {
+        trainee_id: traineeIds,
+        status: 'pending_leave'
+      },
+      order: [['attendance_date', 'ASC']],
+    });
+
+    // Attach trainee info to each request
+    const traineeMap = {};
+    trainees.forEach(t => { traineeMap[t.id] = t; });
+
+    const enriched = requests.map(r => ({
+      ...r.toJSON(),
+      trainee: traineeMap[r.trainee_id] || null,
+    }));
+
+    return res.status(200).json({ success: true, data: enriched });
+  } catch (error) {
+    logger.error(error);
+    return res.status(500).json({ success: false, message: "Internal Server Error" });
+  }
+};
+
+// PUT /api/v1/manager/leave-requests/:id - approve or reject a leave request
+export const respondToLeaveRequest = async (req, res) => {
+  try {
+    const { action, remarks } = req.body; // action: 'approve' | 'reject'
+    if (!['approve', 'reject'].includes(action)) {
+      return res.status(400).json({ success: false, message: "action must be 'approve' or 'reject'" });
+    }
+
+    const record = await Attendance.findByPk(req.params.id);
+    if (!record) {
+      return res.status(404).json({ success: false, message: "Leave request not found" });
+    }
+
+    // Verify this intern belongs to the manager
+    const trainee = await Trainee.findOne({
+      where: { id: record.trainee_id, manager_id: req.user.id }
+    });
+    if (!trainee) {
+      return res.status(403).json({ success: false, message: "This intern is not under your supervision" });
+    }
+
+    const newStatus = action === 'approve' ? 'on_leave' : 'leave_rejected';
+    await record.update({
+      status: newStatus,
+      remarks: remarks || (action === 'approve' ? 'Approved by manager' : 'Rejected by manager'),
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: action === 'approve' ? 'Leave approved' : 'Leave rejected',
+      data: record,
+    });
+  } catch (error) {
+    logger.error(error);
+    return res.status(500).json({ success: false, message: "Internal Server Error" });
+  }
+};
+
+// GET /api/v1/manager/interns/:trainee_user_id/worklog - all task submissions for an intern
+export const getInternWorklog = async (req, res) => {
+  try {
+    const trainee = await Trainee.findOne({
+      where: { user_id: req.params.trainee_user_id, manager_id: req.user.id },
+      include: [{ model: User, attributes: ['id', 'name', 'email'] }]
+    });
+    if (!trainee) {
+      return res.status(404).json({ success: false, message: 'Intern not under your supervision' });
+    }
+
+    // Get all tasks assigned to this intern by this manager
+    const tasks = await Task.findAll({
+      where: { assigned_to: req.params.trainee_user_id, assigned_by: req.user.id },
+      order: [['createdAt', 'DESC']]
+    });
+
+    const taskIds = tasks.map(t => t.id);
+
+    // Get all submissions for these tasks
+    const submissions = await TaskSubmission.findAll({
+      where: { task_id: taskIds },
+      include: [{ model: User, as: 'intern', attributes: ['id', 'name'] }],
+      order: [['createdAt', 'DESC']]
+    });
+
+    // Map submissions back to their tasks
+    const taskMap = {};
+    tasks.forEach(t => { taskMap[t.id] = { ...t.toJSON(), submissions: [] }; });
+    submissions.forEach(s => {
+      if (taskMap[s.task_id]) taskMap[s.task_id].submissions.push(s.toJSON());
+    });
+
+    return res.status(200).json({
+      success: true,
+      data: {
+        trainee: trainee.toJSON(),
+        tasks: Object.values(taskMap),
+        totalSubmissions: submissions.length,
+      }
+    });
+  } catch (error) {
+    logger.error(error);
+    return res.status(500).json({ success: false, message: 'Internal Server Error' });
+  }
+};

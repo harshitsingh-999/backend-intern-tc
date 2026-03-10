@@ -35,7 +35,7 @@ const Task = sequelize.define('tasks', {
     defaultValue: 'medium'
   },
   status: {
-    type: DataTypes.ENUM('todo','in_progress','review','completed','blocked'),
+    type: DataTypes.ENUM('todo','in_progress','review','completed','blocked','rejected'),
     defaultValue: 'todo'
   },
   completion_percentage: {
