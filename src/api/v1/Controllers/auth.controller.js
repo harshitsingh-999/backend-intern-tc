@@ -1,7 +1,9 @@
-import bcrypt from "bcrypt";
+import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import User from "../Models/user.js";
 import Role from "../Models/role.js";
+import Department from "../Models/department.js";
+import responseEmmiter from "../../../helper/response.js";
 import logger from "../../../helper/logger.js";
 
 const COOKIE_OPTIONS = {
@@ -15,69 +17,76 @@ class AuthController {
   async login(req, res) {
     try {
       const { email, password } = req.body;
+      const normalizedEmail = email?.trim().toLowerCase();
+      const jwtSecret = process.env.JWT_SECRET || process.env.JWT_ACCESS_TOKEN;
 
-      if (typeof email !== "string" || typeof password !== "string") {
-        return res.status(400).json({
-          success: false,
-          message: "email and password must be strings"
-        });
+      if (!normalizedEmail || !password) {
+        return responseEmmiter(res, { status: 400, message: "Email and password are required" });
       }
 
-      const normalizedEmail = email.trim().toLowerCase();
-      if (!normalizedEmail || !password) {
-        return res.status(400).json({
-          success: false,
-          message: "email and password are required"
-        });
+      if (!jwtSecret) {
+        logger.error("JWT secret is not configured");
+        return responseEmmiter(res, { status: 500, message: "Server configuration error" });
       }
 
       const user = await User.findOne({
         where: { email: normalizedEmail },
-        include: [{ model: Role, attributes: ["role_name"] }]
+        include: [
+          { model: Role, attributes: ["id", "role_name"] },
+          { model: Department, attributes: ["id", "dept_name"] }
+        ]
       });
+
       if (!user) {
-        return res.status(401).json({
-          success: false,
-          message: "Invalid credentials"
-        });
+        return responseEmmiter(res, { status: 401, message: "Invalid email or password" });
       }
 
-      const isMatch = await bcrypt.compare(password, user.password);
+      if (!user.is_active) {
+        return responseEmmiter(res, { status: 401, message: "Your account is inactive. Contact admin." });
+      }
+
+      const storedPassword = user.password || "";
+      const isBcryptHash = /^\$2[aby]\$\d{2}\$/.test(storedPassword);
+
+      let isMatch = false;
+
+      if (isBcryptHash) {
+        isMatch = await bcrypt.compare(password, storedPassword);
+      } else {
+        isMatch = password === storedPassword;
+      }
+
       if (!isMatch) {
-        return res.status(401).json({
-          success: false,
-          message: "Invalid credentials"
-        });
+        return responseEmmiter(res, { status: 401, message: "Invalid email or password" });
       }
 
-      await user.update({ last_login: new Date() });
+      // convert plaintext passwords to bcrypt
+      if (!isBcryptHash) {
+        user.password = await bcrypt.hash(password, 10);
+      }
 
       const token = jwt.sign(
-        { id: user.id, email: user.email, role_id: user.role_id },
-        process.env.JWT_SECRET,
-        { expiresIn: "7d" }
+        { id: user.id, role_id: user.role_id },
+        jwtSecret,
+        { expiresIn: "8h" }
       );
+
+      user.last_login = new Date();
+      await user.save();
 
       res.cookie("token", token, COOKIE_OPTIONS);
 
-      return res.status(200).json({
-        success: true,
+      const { password: _, ...userData } = user.toJSON();
+
+      return responseEmmiter(res, {
+        status: 200,
         message: "Login successful",
-        data: {
-          id: user.id,
-          name: user.name,
-          email: user.email,
-          role_id: user.role_id,
-          role_name: user.role?.role_name || "User",
-          dept_id: user.dept_id
-        }
+        data: { token, user: userData }
       });
+
     } catch (error) {
       logger.error(error);
-      return res.status(500).json({
-        success: false,
-        message: "Internal Server Error"
-      });
+      return responseEmmiter(res, { status: 500, message: "Internal Server Error" });
     }
   }
 
@@ -106,6 +115,7 @@ class AuthController {
           dept_id: user.dept_id
         }
       });
+
     } catch (error) {
       logger.error(error);
       return res.status(500).json({
@@ -117,6 +127,7 @@ class AuthController {
 
   async logout(req, res) {
     res.cookie("token", "", { ...COOKIE_OPTIONS, maxAge: 0 });
+
     return res.status(200).json({
       success: true,
       message: "Logged out successfully"

@@ -15,6 +15,18 @@ class ExpressServer {
   constructor() {
     this.app = express();
 
+    // Allowed origins from .env
+    const envOrigins = (process.env.FRONTEND_URL || "")
+      .split(",")
+      .map((origin) => origin.trim())
+      .filter(Boolean);
+
+    // Merge default + env origins
+    const allowedOrigins = new Set([
+      ...DEFAULT_ALLOWED_ORIGINS,
+      ...envOrigins
+    ]);
+
     // Security
     this.app.use(
       helmet({
@@ -30,21 +42,16 @@ class ExpressServer {
     this.app.use(express.urlencoded({ limit: "50mb", extended: true }));
 
     // CORS
-    const envOrigins = (process.env.FRONTEND_URL || "")
-      .split(",")
-      .map((origin) => origin.trim())
-      .filter(Boolean);
-    const allowedOrigins = envOrigins.length ? envOrigins : DEFAULT_ALLOWED_ORIGINS;
-
     this.app.use(
       cors({
         origin: (origin, callback) => {
-          // Allow non-browser clients (like curl/Postman) with no Origin header.
+
+          // Allow Postman / curl (no origin header)
           if (!origin) {
             return callback(null, true);
           }
 
-          if (allowedOrigins.includes(origin)) {
+          if (allowedOrigins.has(origin)) {
             return callback(null, true);
           }
 
@@ -57,7 +64,7 @@ class ExpressServer {
     // Cookies
     this.app.use(cookieParser());
 
-    // Static file serving
+    // Static routes
     this.registerStaticRoutes();
   }
 
@@ -73,7 +80,7 @@ class ExpressServer {
         });
       }
 
-      // rootPath already points to /src, so static files live under /src/uploads.
+      // rootPath already points to /src
       const uploadsRoot = path.join(rootPath, "uploads");
       const filePath = path.join(uploadsRoot, type, id, filename);
 

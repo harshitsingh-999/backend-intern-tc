@@ -17,7 +17,7 @@ const Role = sequelize.define('roles', {
     type: DataTypes.STRING(255)
   }
 }, {
-  timestamps: true
+  timestamps: false
 });
 
 export default Role;
