@@ -1,7 +1,10 @@
 import express from 'express';
 import adminUserController from '../Controllers/admin.user.controller.js';
+import { authenticate } from '../../../middlewares/auth.middleware.js';
+import { requireAdmin } from '../../../middlewares/role.middleware.js';
 
 const router = express.Router();
+router.use(authenticate, requireAdmin);
 
 // GET    /api/v1/admin/users           → get all users
 // POST   /api/v1/admin/users           → create user

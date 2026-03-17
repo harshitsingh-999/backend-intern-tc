@@ -1,4 +1,7 @@
 import express from 'express';
+import { authenticate } from '../../../middlewares/auth.middleware.js';
+import { requireRole } from '../../../middlewares/role.middleware.js';
+
 import { getAllAdmins,
   createAdmin,
   getDepartments,
@@ -7,6 +10,7 @@ import { getAllAdmins,
   getAllTrainees } from '../Controllers/superAdmin.controller.js';
 
 const router = express.Router();
+router.use(authenticate, requireRole(5));
 
 router.get('/admins', getAllAdmins);
 router.post("/create-admin", createAdmin);

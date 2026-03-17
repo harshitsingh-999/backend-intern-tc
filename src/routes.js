@@ -8,7 +8,7 @@ import adminUserRoutes from "./api/v1/Routes/admin.user.routes.js";
 import superAdminRoutes from './api/v1/Routes/superAdmin.routes.js';
 
 const routes = (app) => {
-  app.use("/api/v1/auth", authRoutes);
+
   app.use("/api/v1/users", userRoutes);
   app.use("/api/v1/manager", managerRoutes);
   app.use("/api/v1/attendance", attendenceroutes);

@@ -3,7 +3,7 @@ import User from '../api/v1/Models/user.js';
 import Role from '../api/v1/Models/role.js';
 
 export default async (req, res, next) => {
-  const token = req.header('Authorization')?.replace('Bearer ', '');
+  const token = req.cookies?.token;
   if (!token) return res.status(401).json({ success: false, message: 'No token provided' });
 
   // DEVELOPMENT: skip verification for mock token
