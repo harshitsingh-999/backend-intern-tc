@@ -66,7 +66,7 @@ const setupAssociations = () => {
   Feedback.belongsTo(Trainee, { foreignKey: 'trainee_id' });
   Trainee.hasMany(Feedback, { foreignKey: 'trainee_id' });
 
-  Feedback.belongsTo(User, { as: 'buddy', foreignKey: 'buddy_id' });
+  Feedback.belongsTo(User, { as: 'feedbackBuddy', foreignKey: 'buddy_id' });
 };
 
 export default setupAssociations;

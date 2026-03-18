@@ -34,6 +34,4 @@ const Trainee = sequelize.define('trainees', {
   timestamps: true
 });
 
-Trainee.belongsTo(User, { foreignKey: 'user_id' });
-
 export default Trainee;
