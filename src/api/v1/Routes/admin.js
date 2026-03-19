@@ -27,6 +27,10 @@ router.patch('/users/:id/role', authenticate, requireAdmin, adminController.assi
 
 // Trainees
 router.get('/trainees', authenticate, requireAdmin, adminController.getTrainees);
+router.patch('/trainees/:id/assign-manager', authenticate, requireAdmin, adminController.assignManager);
+router.put('/trainees/:id/assign-manager', authenticate, requireAdmin, adminController.assignManager);
+router.patch('/interns/:id/assign-manager', authenticate, requireAdmin, adminController.assignManager);
+router.put('/interns/:id/assign-manager', authenticate, requireAdmin, adminController.assignManager);
 
 // Roles (for dropdowns in frontend)
 router.get('/roles', authenticate, requireAdmin, adminController.getRoles);

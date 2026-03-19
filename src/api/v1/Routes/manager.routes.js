@@ -1,7 +1,6 @@
 import express from "express";
 import { authenticate } from "../../../middlewares/auth.middleware.js";
 import { requireManager } from "../../../middlewares/role.middleware.js";
-// import { createEvaluation, getEvaluations } from "../Controllers/manager.controller.js"
 import {
   getMyInterns,
   getMyTasks,
@@ -18,7 +17,11 @@ import {
   getEvaluations,
   getPendingLeaveRequests,
   respondToLeaveRequest,
-  getInternWorklog
+  getInternWorklog,
+  assignSelfAsManager,
+  getMyProjects,
+  createProject,
+  getProjectProgress,
 } from "../Controllers/manager.controller.js";
 
 const router = express.Router();
@@ -36,10 +39,20 @@ router.get("/leaves/:trainee_user_id", getInternLeaves);
 router.get("/all-interns", getAllInterns);
 router.get("/stats", getDashboardStats);
 router.post("/interns", createIntern);
-router.post("/evaluations",            createEvaluation)
-router.get("/evaluations/:trainee_id", getEvaluations)
-router.get("/leave-requests",          getPendingLeaveRequests)
-router.put("/leave-requests/:id",      respondToLeaveRequest)
-router.get("/interns/:trainee_user_id/worklog", getInternWorklog)
+router.post("/trainees", createIntern);
+router.post("/evaluations",            createEvaluation);
+router.get("/evaluations/:trainee_id", getEvaluations);
+router.get("/leave-requests",          getPendingLeaveRequests);
+router.put("/leave-requests/:id",      respondToLeaveRequest);
+router.get("/interns/:trainee_user_id/worklog", getInternWorklog);
+router.put("/interns/:id/assign-manager", assignSelfAsManager);
+router.patch("/interns/:id/assign-manager", assignSelfAsManager);
+router.put("/trainees/:id/assign-manager", assignSelfAsManager);
+router.patch("/trainees/:id/assign-manager", assignSelfAsManager);
+
+// Project routes (DB table = 'projects', UI label = 'Task' context)
+router.get("/projects", getMyProjects);
+router.post("/projects", createProject);
+router.get("/project-progress", getProjectProgress);
 
 export default router;

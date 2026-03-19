@@ -2,6 +2,7 @@ import { Op } from "sequelize";
 import Task from "../Models/task.js";
 import User from "../Models/user.js";
 import Trainee from "../Models/trainee.js";
+import Project from "../Models/project.js";
 import Attendance from "../Models/attendance.js";
 import TaskSubmission from "../Models/taskSubmission.js";
 import logger from "../../../helper/logger.js";
@@ -117,8 +118,18 @@ export const createTask = async (req, res) => {
       });
     }
 
+    const assignedToUserId = Number(assigned_to);
+    const projectId = Number(project_id);
+
+    if (!Number.isInteger(assignedToUserId) || !Number.isInteger(projectId)) {
+      return res.status(400).json({
+        success: false,
+        message: "assigned_to and project_id must be valid numeric IDs"
+      });
+    }
+
     const trainee = await Trainee.findOne({
-      where: { user_id: assigned_to, manager_id: req.user.id }
+      where: { user_id: assignedToUserId, manager_id: req.user.id }
     });
     if (!trainee) {
       return res.status(403).json({
@@ -127,13 +138,23 @@ export const createTask = async (req, res) => {
       });
     }
 
+    const project = await Project.findOne({
+      where: { id: projectId, manager_id: req.user.id }
+    });
+    if (!project) {
+      return res.status(404).json({
+        success: false,
+        message: "Project not found for this manager. Create a project first or use a valid project ID."
+      });
+    }
+
     const task = await Task.create({
       title,
       description,
-      assigned_to,
+      assigned_to: assignedToUserId,
       assigned_by: req.user.id,
-      project_id,
-      start_date: start_date || new Date(),
+      project_id: projectId,
+      start_date: start_date || new Date().toISOString().split("T")[0],
       due_date,
       priority: priority || "medium",
       tech_stack,
@@ -398,7 +419,26 @@ export const respondToLeaveRequest = async (req, res) => {
   }
 };
 
-// GET /api/v1/manager/interns/:trainee_user_id/worklog - all task submissions for an intern
+// PUT /api/v1/manager/interns/:id/assign-manager
+// Allows manager to assign themselves to an intern (or admin can use admin endpoint)
+export const assignSelfAsManager = async (req, res) => {
+  try {
+    const trainee = await Trainee.findByPk(req.params.id, {
+      include: [{ model: User, attributes: ['id', 'name', 'email'] }]
+    });
+    if (!trainee) {
+      return res.status(404).json({ success: false, message: 'Intern not found' });
+    }
+    if (trainee.manager_id && trainee.manager_id !== req.user.id) {
+      return res.status(409).json({ success: false, message: 'This intern already has a manager assigned. Please ask an admin to reassign.' });
+    }
+    await trainee.update({ manager_id: req.user.id });
+    return res.status(200).json({ success: true, message: 'You are now assigned as manager for this intern', data: trainee });
+  } catch (error) {
+    logger.error(error);
+    return res.status(500).json({ success: false, message: 'Internal Server Error' });
+  }
+};
 export const getInternWorklog = async (req, res) => {
   try {
     const trainee = await Trainee.findOne({
@@ -439,6 +479,132 @@ export const getInternWorklog = async (req, res) => {
         totalSubmissions: submissions.length,
       }
     });
+  } catch (error) {
+    logger.error(error);
+    return res.status(500).json({ success: false, message: 'Internal Server Error' });
+  }
+};
+
+// GET /api/v1/manager/projects - all projects belonging to this manager
+export const getMyProjects = async (req, res) => {
+  try {
+    const projects = await Project.findAll({
+      where: { manager_id: req.user.id },
+      order: [['createdAt', 'DESC']]
+    });
+    return res.status(200).json({ success: true, data: projects });
+  } catch (error) {
+    logger.error(error);
+    return res.status(500).json({ success: false, message: 'Internal Server Error' });
+  }
+};
+
+// POST /api/v1/manager/projects - create a project
+export const createProject = async (req, res) => {
+  try {
+    const { project_name, description, start_date, end_date, status, priority, dept_id } = req.body;
+    if (!project_name || !start_date) {
+      return res.status(400).json({ success: false, message: 'project_name and start_date are required' });
+    }
+    const project = await Project.create({
+      project_name, description, start_date, end_date,
+      status: status || 'planning',
+      priority: priority || 'medium',
+      dept_id: dept_id || null,
+      manager_id: req.user.id,
+    });
+    return res.status(201).json({ success: true, message: 'Project created', data: project });
+  } catch (error) {
+    logger.error(error);
+    return res.status(500).json({ success: false, message: 'Internal Server Error' });
+  }
+};
+
+// GET /api/v1/manager/project-progress - all interns' task progress per project
+export const getProjectProgress = async (req, res) => {
+  try {
+    // Get all projects for this manager
+    const projects = await Project.findAll({
+      where: { manager_id: req.user.id },
+      order: [['createdAt', 'DESC']]
+    });
+
+    // Get all interns under this manager
+    const trainees = await Trainee.findAll({
+      where: { manager_id: req.user.id },
+      include: [{ model: User, attributes: ['id', 'name', 'email'] }]
+    });
+
+    const internUserIds = trainees.map(t => t.user_id);
+
+    // Get all tasks for this manager's interns
+    const tasks = await Task.findAll({
+      where: {
+        assigned_by: req.user.id,
+      },
+      include: [{ model: User, as: 'assignee', attributes: ['id', 'name', 'email'] }],
+      order: [['createdAt', 'DESC']]
+    });
+
+    // Build trainee map
+    const traineeMap = {};
+    trainees.forEach(t => { traineeMap[t.user_id] = t; });
+
+    // Group tasks by project
+    const projectMap = {};
+    projects.forEach(p => {
+      projectMap[p.id] = {
+        project: p.toJSON(),
+        interns: {}
+      };
+    });
+
+    tasks.forEach(task => {
+      const t = task.toJSON();
+      const pid = t.project_id;
+      if (!projectMap[pid]) {
+        // Task belongs to a project not in our list (edge case), skip
+        return;
+      }
+      const uid = t.assigned_to;
+      if (!projectMap[pid].interns[uid]) {
+        const trainee = traineeMap[uid];
+        projectMap[pid].interns[uid] = {
+          user: t.assignee,
+          trainee: trainee ? trainee.toJSON() : null,
+          tasks: [],
+          totalTasks: 0,
+          completedTasks: 0,
+          inProgressTasks: 0,
+          avgCompletion: 0,
+        };
+      }
+      projectMap[pid].interns[uid].tasks.push(t);
+    });
+
+    // Compute stats per intern per project
+    Object.values(projectMap).forEach(pm => {
+      Object.values(pm.interns).forEach(internData => {
+        const ts = internData.tasks;
+        internData.totalTasks = ts.length;
+        internData.completedTasks = ts.filter(t => t.status === 'completed').length;
+        internData.inProgressTasks = ts.filter(t => t.status === 'in_progress').length;
+        internData.reviewTasks = ts.filter(t => t.status === 'review').length;
+        internData.avgCompletion = ts.length
+          ? Math.round(ts.reduce((sum, t) => sum + (t.completion_percentage || 0), 0) / ts.length)
+          : 0;
+        internData.overallProgress = ts.length
+          ? Math.round((internData.completedTasks / ts.length) * 100)
+          : 0;
+        delete internData.tasks; // keep response lean
+      });
+      // Convert interns map to array
+      pm.interns = Object.values(pm.interns);
+    });
+
+    const result = Object.values(projectMap);
+
+    return res.status(200).json({ success: true, data: result });
   } catch (error) {
     logger.error(error);
     return res.status(500).json({ success: false, message: 'Internal Server Error' });

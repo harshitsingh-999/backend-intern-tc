@@ -1,14 +1,4 @@
-// import express from "express";
-// import { loginUser, registerUser, forgotPassword, resetPassword } from "../Controllers/user.controller.js";
-// const router = express.Router();
 
-// router.post("/register", registerUser);
-// router.post("/login", loginUser);
-// router.post("/forgot-password", forgotPassword);
-// router.post("/reset-password", resetPassword);
-
-// export default router;
-// src/api/v1/Routes/user.routes.js
 import express from "express";
 import { registerUser, loginUser, getUserStats, forgotPassword, resetPassword } from "../Controllers/user.controller.js";
 import { authenticate } from "../../../middlewares/auth.middleware.js";
