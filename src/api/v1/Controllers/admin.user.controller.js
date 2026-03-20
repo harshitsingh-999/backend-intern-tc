@@ -5,20 +5,21 @@ import Role from '../Models/role.js';
 import Department from '../Models/department.js';
 import responseEmmiter from '../../../helper/response.js';
 import logger from '../../../helper/logger.js';
+import { sendEmail } from '../../../utils/sendEmail.js';
 
 class AdminUserController {
 
   // GET ALL USERS
   async getAllUsers(req, res) {
     try {
-      const page   = parseInt(req.query.page)  || 1;
-      const limit  = parseInt(req.query.limit) || 10;
+      const page = parseInt(req.query.page) || 1;
+      const limit = parseInt(req.query.limit) || 10;
       const search = req.query.search || '';
       const offset = (page - 1) * limit;
 
       const whereClause = search ? {
         [Op.or]: [
-          { name:  { [Op.like]: `%${search}%` } },
+          { name: { [Op.like]: `%${search}%` } },
           { email: { [Op.like]: `%${search}%` } },
         ],
       } : {};
@@ -26,7 +27,7 @@ class AdminUserController {
       const { count, rows } = await User.findAndCountAll({
         where: whereClause,
         include: [
-          { model: Role,       attributes: ['id', 'role_name'] },
+          { model: Role, attributes: ['id', 'role_name'] },
           { model: Department, attributes: ['id', 'dept_name'] },
         ],
         attributes: { exclude: ['password'] },
@@ -69,7 +70,7 @@ class AdminUserController {
 
       const user = await User.findByPk(id, {
         include: [
-          { model: Role,       attributes: ['id', 'role_name'] },
+          { model: Role, attributes: ['id', 'role_name'] },
           { model: Department, attributes: ['id', 'dept_name'] },
         ],
         attributes: { exclude: ['password'] },
@@ -118,12 +119,29 @@ class AdminUserController {
         name,
         email,
         password: hashedPassword,
-        phone:     phone     || null,
-        address:   address   || null,
-        role_id:   role_id   || 4,
-        dept_id:   dept_id   || null,
+        phone: phone || null,
+        address: address || null,
+        role_id: role_id || 4,
+        dept_id: dept_id || null,
         is_active: is_active !== undefined ? is_active : 1,
       });
+
+      // Send email notification to new user
+      await sendEmail(
+        email,
+        "Internship Portal - Account Created",
+        `Hello ${name},
+
+Your account has been created successfully by the Admin.
+
+Email: ${email}
+Password: ${password}
+
+Please login and change your password.
+Link: http://localhost:5173/login
+
+Thank you.`
+      );
 
       const { password: _, ...userData } = user.toJSON();
 
@@ -157,12 +175,12 @@ class AdminUserController {
       }
 
       const updateData = {};
-      if (name      !== undefined) updateData.name      = name;
-      if (email     !== undefined) updateData.email     = email;
-      if (phone     !== undefined) updateData.phone     = phone;
-      if (address   !== undefined) updateData.address   = address;
-      if (role_id   !== undefined) updateData.role_id   = role_id;
-      if (dept_id   !== undefined) updateData.dept_id   = dept_id;
+      if (name !== undefined) updateData.name = name;
+      if (email !== undefined) updateData.email = email;
+      if (phone !== undefined) updateData.phone = phone;
+      if (address !== undefined) updateData.address = address;
+      if (role_id !== undefined) updateData.role_id = role_id;
+      if (dept_id !== undefined) updateData.dept_id = dept_id;
       if (is_active !== undefined) updateData.is_active = is_active;
 
       if (password) {

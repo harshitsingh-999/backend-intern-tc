@@ -31,11 +31,11 @@ const Task = sequelize.define('tasks', {
     allowNull: false
   },
   priority: {
-    type: DataTypes.ENUM('low','medium','high','critical'),
+    type: DataTypes.ENUM('low', 'medium', 'high', 'critical'),
     defaultValue: 'medium'
   },
   status: {
-    type: DataTypes.ENUM('todo','in_progress','review','completed','blocked','rejected'),
+    type: DataTypes.ENUM('todo', 'in_progress', 'review', 'completed', 'blocked', 'rejected', 'hold'),
     defaultValue: 'todo'
   },
   completion_percentage: {
