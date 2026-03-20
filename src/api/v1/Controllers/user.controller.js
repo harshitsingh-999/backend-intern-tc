@@ -119,7 +119,8 @@ export const loginUser = async (req, res) => {
         name: user.name,
         email: user.email,
         role_id: user.role_id,
-        dept_id: user.dept_id
+        dept_id: user.dept_id,
+        profile_picture: user.profile_picture
       }
     });
   } catch (error) {
@@ -168,4 +169,29 @@ export const resetPassword = async (req, res) => {
     success: false,
     message: "resetPassword not implemented"
   });
+};
+
+export const uploadProfile = async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ success: false, message: "No image file provided" });
+    }
+
+    const user = await User.findByPk(req.user.id);
+    if (!user) {
+      return res.status(404).json({ success: false, message: "User not found" });
+    }
+
+    const profileUrl = `/api/uploads/profiles/${req.user.id}/${req.file.filename}`;
+    await user.update({ profile_picture: profileUrl });
+
+    return res.status(200).json({
+      success: true,
+      message: "Profile picture updated successfully",
+      profile_url: profileUrl
+    });
+  } catch (error) {
+    logger.error("Error uploading profile:", error);
+    return res.status(500).json({ success: false, message: "Internal Server Error" });
+  }
 };

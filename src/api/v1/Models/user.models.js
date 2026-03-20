@@ -26,6 +26,10 @@ const User = sequelize.define("User", {
   reset_token_expiry: {
     type: DataTypes.DATE,
   },
+  profile_picture: {
+    type: DataTypes.STRING(255),
+    allowNull: true,
+  },
 }, {
   timestamps: false
 });

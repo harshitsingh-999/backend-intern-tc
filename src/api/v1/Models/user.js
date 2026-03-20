@@ -34,7 +34,11 @@ const User = sequelize.define('users', {
     type: DataTypes.TINYINT,
     defaultValue: 1
   },
-  last_login: DataTypes.DATE
+  last_login: DataTypes.DATE,
+  profile_picture: {
+    type: DataTypes.STRING(255),
+    allowNull: true
+  }
 }, {
   timestamps: true
 });

@@ -71,7 +71,7 @@ class ExpressServer {
   registerStaticRoutes() {
     this.app.get("/api/uploads/:type/:id/:filename", (req, res) => {
       const { type, id, filename } = req.params;
-      const allowedTypes = ["tickets", "task-submissions"];
+      const allowedTypes = ["tickets", "task-submissions", "profiles"];
 
       if (!allowedTypes.includes(type)) {
         return res.status(400).json({
@@ -79,6 +79,9 @@ class ExpressServer {
           message: "Invalid file type"
         });
       }
+
+      // Allow cross-origin image loading (frontend on different port)
+      res.setHeader("Cross-Origin-Resource-Policy", "cross-origin");
 
       // rootPath already points to /src
       const uploadsRoot = path.join(rootPath, "uploads");

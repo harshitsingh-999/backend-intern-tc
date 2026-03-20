@@ -150,7 +150,7 @@ export const getMyEvaluations = async (req, res) => {
 export const getMyProfile = async (req, res) => {
   try {
     const user = await User.findByPk(req.user.id, {
-      attributes: ["id", "name", "email", "phone", "address", "role_id"],
+      attributes: ["id", "name", "email", "phone", "address", "role_id", "profile_picture"],
     });
     if (!user) {
       return res.status(404).json({ success: false, message: "User not found" });
@@ -214,7 +214,7 @@ export const updateMyProfile = async (req, res) => {
       message: "Profile updated successfully",
       data: {
         user: await User.findByPk(req.user.id, {
-          attributes: ["id", "name", "email", "phone", "address", "role_id"],
+          attributes: ["id", "name", "email", "phone", "address", "role_id", "profile_picture"],
         }),
         trainee: trainee.toJSON(),
       },

@@ -1,17 +1,18 @@
 
 import express from "express";
-import { registerUser, loginUser, getUserStats, forgotPassword, resetPassword } from "../Controllers/user.controller.js";
+import { registerUser, loginUser, getUserStats, forgotPassword, resetPassword, uploadProfile } from "../Controllers/user.controller.js";
 import { authenticate } from "../../../middlewares/auth.middleware.js";
 import { requireManager, requireAdmin } from "../../../middlewares/role.middleware.js";
+import upload from "../../../middlewares/upload.js";
 
 const router = express.Router();
 
 // Public routes
 router.post("/register", registerUser);
-router.post("/login",    loginUser);
+router.post("/login", loginUser);
 router.post("/forgot-password", forgotPassword);
-router.post("/reset-password",  resetPassword);
-// router.post("/upload-profile", upload.single("image"), uploadProfile);
+router.post("/reset-password", resetPassword);
+router.post("/upload-profile", authenticate, upload.single("image"), uploadProfile);
 
 // Protected: any authenticated user can read dashboard stats
 router.get("/stats", authenticate, getUserStats);

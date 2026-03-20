@@ -93,7 +93,7 @@ class AuthController {
   async me(req, res) {
     try {
       const user = await User.findByPk(req.user.id, {
-        attributes: ["id", "name", "email", "role_id", "dept_id", "is_active", "last_login"],
+        attributes: ["id", "name", "email", "role_id", "dept_id", "is_active", "last_login", "profile_picture"],
         include: [{ model: Role, attributes: ["role_name"] }]
       });
 
@@ -112,7 +112,8 @@ class AuthController {
           email: user.email,
           role_id: user.role_id,
           role_name: user.role?.role_name || "User",
-          dept_id: user.dept_id
+          dept_id: user.dept_id,
+          profile_picture: user.profile_picture
         }
       });
 
