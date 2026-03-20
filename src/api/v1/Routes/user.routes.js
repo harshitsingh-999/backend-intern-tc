@@ -11,6 +11,7 @@ router.post("/register", registerUser);
 router.post("/login",    loginUser);
 router.post("/forgot-password", forgotPassword);
 router.post("/reset-password",  resetPassword);
+// router.post("/upload-profile", upload.single("image"), uploadProfile);
 
 // Protected: any authenticated user can read dashboard stats
 router.get("/stats", authenticate, getUserStats);
