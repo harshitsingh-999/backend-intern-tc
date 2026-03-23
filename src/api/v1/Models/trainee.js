@@ -1,7 +1,7 @@
 // src/api/v1/Models/trainee.js
 import { DataTypes } from 'sequelize';
 import sequelize from '../../../config/db.config.js';
-import User from './user.js';
+
 
 const Trainee = sequelize.define('trainees', {
   id: {

@@ -7,7 +7,12 @@ import { getAllAdmins,
   getDepartments,
   assignAdminDepartment,
   dashboard,
-  getAllTrainees } from '../Controllers/superAdmin.controller.js';
+  getAllTrainees,
+  getAllTasks,
+  overrideTaskStatus,
+  getSettings,
+  updateSettings,
+  exportSystemData } from '../Controllers/superAdmin.controller.js';
 
 const router = express.Router();
 router.use(authenticate, requireRole(5));
@@ -22,7 +27,11 @@ router.put("/assign-admin-department", assignAdminDepartment);
 router.get("/dashboard", dashboard);
 
 router.get("/trainees", getAllTrainees);
+router.get("/tasks", getAllTasks);
+router.put("/tasks/:id", overrideTaskStatus);
 
-// router.get("/tasks", getMyTasks);
+router.get("/settings", getSettings);
+router.put("/settings", updateSettings);
+router.get("/export-data", exportSystemData);
 
 export default router;

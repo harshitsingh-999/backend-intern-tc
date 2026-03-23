@@ -22,6 +22,9 @@ import {
   getMyProjects,
   createProject,
   getProjectProgress,
+  getRecentSubmissions,
+  getInternAttendance,
+  deleteProject,
 } from "../Controllers/manager.controller.js";
 
 const router = express.Router();
@@ -45,14 +48,17 @@ router.get("/evaluations/:trainee_id", getEvaluations);
 router.get("/leave-requests",          getPendingLeaveRequests);
 router.put("/leave-requests/:id",      respondToLeaveRequest);
 router.get("/interns/:trainee_user_id/worklog", getInternWorklog);
+router.get("/recent-submissions", getRecentSubmissions);
 router.put("/interns/:id/assign-manager", assignSelfAsManager);
 router.patch("/interns/:id/assign-manager", assignSelfAsManager);
 router.put("/trainees/:id/assign-manager", assignSelfAsManager);
 router.patch("/trainees/:id/assign-manager", assignSelfAsManager);
+router.get("/interns/:trainee_user_id/attendance", getInternAttendance);
 
 // Project routes (DB table = 'projects', UI label = 'Task' context)
 router.get("/projects", getMyProjects);
 router.post("/projects", createProject);
+router.delete("/projects/:id", deleteProject);
 router.get("/project-progress", getProjectProgress);
 
 export default router;

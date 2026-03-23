@@ -404,3 +404,21 @@ export const getLeaveBalance = async (req, res) => {
     return res.status(500).json({ success: false, message: "Internal Server Error" });
   }
 };
+
+// GET /api/v1/intern/recent-submissions
+export const getMyRecentSubmissions = async (req, res) => {
+  try {
+    const submissions = await TaskSubmission.findAll({
+      where: { submitted_by: req.user.id },
+      include: [
+        { model: Task, attributes: ["title"] }
+      ],
+      order: [["createdAt", "DESC"]],
+      limit: 10
+    });
+    return res.status(200).json({ success: true, data: submissions });
+  } catch (error) {
+    logger.error(error);
+    return res.status(500).json({ success: false, message: "Internal Server Error" });
+  }
+};

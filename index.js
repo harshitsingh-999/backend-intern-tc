@@ -4,9 +4,15 @@ dotenv.config();
 import server from './src/app.js';
 import { createDatabaseIfNotExists } from './src/config/db.init.js';
 import syncModels from './src/api/v1/Models/modelSync.js';
+// import eventRoutes from "./src/api/v1/Routes/event.routes.js";
+// import express from "express";
+
+// const app = express();   // ✅ THIS MUST EXIST BEFORE app.use
+
+//    app.use("/api/v1", eventRoutes);
 
 const PORT = process.env.PORT || 7357;
-
+  
 (async () => {
   try {
     await createDatabaseIfNotExists();

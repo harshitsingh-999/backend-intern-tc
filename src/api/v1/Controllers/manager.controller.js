@@ -610,3 +610,78 @@ export const getProjectProgress = async (req, res) => {
     return res.status(500).json({ success: false, message: 'Internal Server Error' });
   }
 };
+
+// GET /api/v1/manager/recent-submissions
+export const getRecentSubmissions = async (req, res) => {
+  try {
+    const trainees = await Trainee.findAll({ where: { manager_id: req.user.id } });
+    const internUserIds = trainees.map(t => t.user_id);
+
+    const submissions = await TaskSubmission.findAll({
+      where: { submitted_by: internUserIds },
+      include: [
+        { 
+          model: User, 
+          as: "intern", 
+          attributes: ["id", "name", "role_id"],
+          include: [{
+            model: Trainee,
+            attributes: ["id", "buddy_id"],
+            include: [{ model: User, as: "buddy", attributes: ["name"] }]
+          }]
+        },
+        { model: Task, attributes: ["title"] }
+      ],
+      order: [["createdAt", "DESC"]],
+      limit: 10
+    });
+    return res.status(200).json({ success: true, data: submissions });
+  } catch (error) {
+    logger.error(error);
+    return res.status(500).json({ success: false, message: "Internal Server Error" });
+  }
+};
+
+// GET /api/v1/manager/interns/:trainee_user_id/attendance - fetch daily attendance for an intern
+export const getInternAttendance = async (req, res) => {
+  try {
+    const trainee = await Trainee.findOne({
+      where: { user_id: req.params.trainee_user_id, manager_id: req.user.id }
+    });
+    if (!trainee) {
+      return res.status(404).json({ success: false, message: "Intern not under your supervision" });
+    }
+
+    const records = await Attendance.findAll({
+      where: { trainee_id: trainee.id },
+      order: [["attendance_date", "DESC"]],
+      limit: 60, // Return last 2 months of attendance
+    });
+
+    return res.status(200).json({ success: true, data: records });
+  } catch (error) {
+    logger.error(error);
+    return res.status(500).json({ success: false, message: "Internal Server Error" });
+  }
+};
+
+// DELETE /api/v1/manager/projects/:id - delete a project and its tasks
+export const deleteProject = async (req, res) => {
+  try {
+    const project = await Project.findOne({
+      where: { id: req.params.id, manager_id: req.user.id }
+    });
+    if (!project) {
+      return res.status(404).json({ success: false, message: "Project not found or not yours" });
+    }
+
+    // Delete tasks associated with this project first
+    await Task.destroy({ where: { project_id: project.id } });
+
+    await project.destroy();
+    return res.status(200).json({ success: true, message: "Project and its tasks deleted successfully" });
+  } catch (error) {
+    logger.error(error);
+    return res.status(500).json({ success: false, message: "Internal Server Error" });
+  }
+};

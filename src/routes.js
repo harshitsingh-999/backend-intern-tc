@@ -6,6 +6,7 @@ import attendenceRoutes from "./api/v1/Routes/attendence.route.js";
 import adminRoutes     from "./api/v1/Routes/admin.js";
 import adminUserRoutes from "./api/v1/Routes/admin.user.routes.js";
 import superAdminRoutes from './api/v1/Routes/superAdmin.routes.js';
+import eventRoutes     from "./api/v1/Routes/event.routes.js";
 
 const routes = (app) => {
   app.use("/api/v1/auth",       authRoutes);
@@ -14,6 +15,7 @@ const routes = (app) => {
   app.use("/api/v1/attendance", attendenceRoutes);
   app.use("/api/v1/intern",     internRoutes);
   app.use("/api/v1/superadmin", superAdminRoutes);
+  app.use("/api/v1",            eventRoutes);
 
   // admin/users must come BEFORE generic /admin
   // so the adminUserRoutes controller (paginated, full-featured) handles user CRUD

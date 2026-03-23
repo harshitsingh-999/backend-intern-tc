@@ -2,7 +2,12 @@ import User from "../Models/user.js";
 import Role from "../Models/role.js";
 import Department from "../Models/department.js";
 import Trainee from "../Models/trainee.js";
-
+import Task from "../Models/task.js";
+import Project from "../Models/project.js";
+import Evaluation from "../Models/evaluation.js";
+import Attendance from "../Models/attendance.js";
+import SystemSetting from "../Models/systemSetting.js";
+import logger from "../../../helper/logger.js";
 
 // 1️⃣ Get All Admins
 export const getAllAdmins = async (req, res) => {
@@ -106,5 +111,100 @@ export const getAllTrainees = async (req, res) => {
 
   } catch (error) {
     res.status(500).json({ error: error.message });
+  }
+};
+
+// 7️⃣ Get All Tasks (for Override Decisions)
+export const getAllTasks = async (req, res) => {
+  try {
+    const tasks = await Task.findAll({
+      order: [['createdAt', 'DESC']],
+      include: [
+        { model: User, as: 'assignee', attributes: ['id', 'name'] },
+        { model: User, as: 'assigner', attributes: ['id', 'name'] }
+      ]
+    });
+    res.json({ success: true, data: tasks });
+  } catch (error) {
+    logger.error(error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// 9️⃣ Get All System Settings
+export const getSettings = async (req, res) => {
+  try {
+    const settings = await SystemSetting.findAll();
+    res.json({ success: true, data: settings });
+  } catch (error) {
+    logger.error(error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// 🔟 Bulk Update/Upsert System Settings
+export const updateSettings = async (req, res) => {
+  try {
+    const { settings } = req.body;
+    
+    if (!Array.isArray(settings)) {
+      return res.status(400).json({ success: false, message: "Settings must be an array" });
+    }
+
+    for (const item of settings) {
+      if (!item.key) continue;
+      await SystemSetting.upsert({
+        key: item.key,
+        value: item.value?.toString() || "",
+        category: item.category || 'general'
+      });
+    }
+
+    res.json({ success: true, message: "Settings updated successfully" });
+  } catch (error) {
+    logger.error(error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// 8️⃣ Override Task Status
+export const overrideTaskStatus = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status } = req.body;
+
+    const task = await Task.findByPk(id);
+    if (!task) {
+      return res.status(404).json({ success: false, message: "Task not found" });
+    }
+
+    await task.update({ status });
+    res.json({ success: true, message: "Task status overridden successfully", data: task });
+  } catch (error) {
+    logger.error(error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// 1️⃣1️⃣ Export All System Data
+export const exportSystemData = async (req, res) => {
+  try {
+    const data = {
+      users: await User.findAll({ raw: true }),
+      roles: await Role.findAll({ raw: true }),
+      departments: await Department.findAll({ raw: true }),
+      trainees: await Trainee.findAll({ raw: true }),
+      projects: await Project.findAll({ raw: true }),
+      tasks: await Task.findAll({ raw: true }),
+      evaluations: await Evaluation.findAll({ raw: true }),
+      attendance: await Attendance.findAll({ raw: true }),
+      system_settings: await SystemSetting.findAll({ raw: true }),
+      exported_at: new Date().toISOString()
+    };
+
+    res.json({ success: true, data });
+  } catch (error) {
+    logger.error(error);
+    res.status(500).json({ success: false, message: error.message });
   }
 };
