@@ -2,6 +2,16 @@
 import { DataTypes } from 'sequelize';
 import sequelize from '../../../config/db.config.js';
 
+export const TASK_STATUSES = [
+  'todo',
+  'in_progress',
+  'review',
+  'completed',
+  'blocked',
+  'rejected',
+  'hold'
+];
+
 const Task = sequelize.define('tasks', {
   id: {
     type: DataTypes.INTEGER,
@@ -35,7 +45,7 @@ const Task = sequelize.define('tasks', {
     defaultValue: 'medium'
   },
   status: {
-    type: DataTypes.ENUM('todo', 'in_progress', 'review', 'completed', 'blocked', 'rejected', 'hold'),
+    type: DataTypes.ENUM(...TASK_STATUSES),
     defaultValue: 'todo'
   },
   completion_percentage: {

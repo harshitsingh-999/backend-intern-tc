@@ -1,5 +1,5 @@
 import { Op } from "sequelize";
-import Task from "../Models/task.js";
+import Task, { TASK_STATUSES } from "../Models/task.js";
 import User from "../Models/user.js";
 import Trainee from "../Models/trainee.js";
 import Project from "../Models/project.js";
@@ -7,6 +7,7 @@ import Attendance from "../Models/attendance.js";
 import TaskSubmission from "../Models/taskSubmission.js";
 import logger from "../../../helper/logger.js";
 import Evaluation from "../Models/evaluation.js";
+import { sendTaskAssignedEmail } from "../../../utils/sendEmail.js";
 
 // GET /api/v1/manager/interns - interns mapped to logged-in manager
 export const getMyInterns = async (req, res) => {
@@ -161,6 +162,23 @@ export const createTask = async (req, res) => {
       status: "todo"
     });
 
+    const assignee = await User.findByPk(assignedToUserId, {
+      attributes: ["id", "name", "email"]
+    });
+
+    await sendTaskAssignedEmail({
+      assigneeEmail: assignee?.email,
+      assigneeName: assignee?.name,
+      title: task.title,
+      description: task.description,
+      dueDate: task.due_date,
+      startDate: task.start_date,
+      priority: task.priority,
+      techStack: task.tech_stack,
+      projectName: project.project_name,
+      assignerName: req.user.name
+    });
+
     return res.status(201).json({ success: true, message: "Task created", data: task });
   } catch (error) {
     logger.error(error);
@@ -179,6 +197,14 @@ export const updateTask = async (req, res) => {
     }
 
     const { title, description, due_date, priority, status, completion_percentage, tech_stack } = req.body;
+
+    if (status !== undefined && !TASK_STATUSES.includes(status)) {
+      return res.status(400).json({
+        success: false,
+        message: `status must be one of ${TASK_STATUSES.join(", ")}`
+      });
+    }
+
     await task.update({
       title: title ?? task.title,
       description: description ?? task.description,

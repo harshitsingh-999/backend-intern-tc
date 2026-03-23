@@ -1,4 +1,4 @@
-git import { DataTypes } from 'sequelize';
+import { DataTypes } from 'sequelize';
 import sequelize from '../../../config/db.config.js';
 
 const SystemSetting = sequelize.define('system_settings', {

@@ -8,6 +8,12 @@ import Evaluation from "../Models/evaluation.js";
 import Attendance from "../Models/attendance.js";
 import SystemSetting from "../Models/systemSetting.js";
 import logger from "../../../helper/logger.js";
+import sequelize from "../../../config/db.config.js";
+
+const exportTable = async (tableName) => {
+  const [rows] = await sequelize.query(`SELECT * FROM \`${tableName}\``);
+  return rows;
+};
 
 // 1️⃣ Get All Admins
 export const getAllAdmins = async (req, res) => {
@@ -190,19 +196,22 @@ export const overrideTaskStatus = async (req, res) => {
 export const exportSystemData = async (req, res) => {
   try {
     const data = {
-      users: await User.findAll({ raw: true }),
-      roles: await Role.findAll({ raw: true }),
-      departments: await Department.findAll({ raw: true }),
-      trainees: await Trainee.findAll({ raw: true }),
-      projects: await Project.findAll({ raw: true }),
-      tasks: await Task.findAll({ raw: true }),
-      evaluations: await Evaluation.findAll({ raw: true }),
-      attendance: await Attendance.findAll({ raw: true }),
-      system_settings: await SystemSetting.findAll({ raw: true }),
+      users: await exportTable("users"),
+      roles: await exportTable("roles"),
+      departments: await exportTable("departments"),
+      trainees: await exportTable("trainees"),
+      projects: await exportTable("projects"),
+      tasks: await exportTable("tasks"),
+      evaluations: await exportTable("evaluations"),
+      attendance: await exportTable("attendance"),
+      system_settings: await exportTable("system_settings"),
       exported_at: new Date().toISOString()
     };
 
-    res.json({ success: true, data });
+    const fileName = `system-export-${new Date().toISOString().replace(/[:.]/g, "-")}.json`;
+    res.setHeader("Content-Disposition", `attachment; filename="${fileName}"`);
+    res.type("application/json");
+    res.status(200).send(JSON.stringify({ success: true, data }, null, 2));
   } catch (error) {
     logger.error(error);
     res.status(500).json({ success: false, message: error.message });

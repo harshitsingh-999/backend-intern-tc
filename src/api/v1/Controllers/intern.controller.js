@@ -8,6 +8,7 @@ import logger from "../../../helper/logger.js";
 import rootPath from "../../../helper/rootPath.js";
 import Trainee    from "../Models/trainee.js";
 import Evaluation from "../Models/evaluation.js";
+import { sendTaskSubmittedEmail } from "../../../utils/sendEmail.js";
 
 const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024;
 
@@ -113,6 +114,21 @@ export const submitAssignedTask = async (req, res) => {
     await task.update({
       status: requestedStatus,
       completion_percentage: completionNumber
+    });
+
+    const manager = await User.findByPk(task.assigned_by, {
+      attributes: ["id", "name", "email"]
+    });
+
+    await sendTaskSubmittedEmail({
+      managerEmail: manager?.email,
+      managerName: manager?.name,
+      internName: req.user.name,
+      taskTitle: task.title,
+      submissionStatus: requestedStatus,
+      completionPercentage: completionNumber,
+      workNotes,
+      fileAttached: Boolean(fileName)
     });
 
     return res.status(200).json({
