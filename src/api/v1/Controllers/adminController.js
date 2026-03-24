@@ -195,7 +195,7 @@ const getTrainees = async (req, res) => {
         u.is_active AS u_is_active
       FROM users u
       LEFT JOIN trainees t ON t.user_id = u.id
-      WHERE u.role_id IN (3, 4)
+      WHERE u.role_id IN 4
       ORDER BY COALESCE(t.createdAt, u.createdAt) DESC
     `);
 

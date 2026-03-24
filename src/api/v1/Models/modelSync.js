@@ -24,13 +24,18 @@ const ensureTaskStatusEnum = async () => {
 const syncModels = async () => {
   try {
     setupAssociations();
-
     await sequelize.sync({ alter: false });
-    await ensureTaskStatusEnum();
-
     console.log("All tables synced successfully");
   } catch (err) {
     console.error("Error syncing tables:", err);
+  }
+
+  // Run enum migration separately so a failure here never blocks startup
+  try {
+    await ensureTaskStatusEnum();
+    console.log("Task status enum updated");
+  } catch (err) {
+    console.warn("ensureTaskStatusEnum skipped (table may not exist yet):", err.message);
   }
 };
 

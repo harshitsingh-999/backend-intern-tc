@@ -57,10 +57,10 @@ export const createAdmin = async (req, res) => {
 // 3️⃣ Get All Departments
 export const getDepartments = async (req, res) => {
   try {
-    const departments = await Department.findAll();
-    res.json(departments);
+    const departments = await Department.findAll({ raw: true });
+    res.json({ success: true, data: departments });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ success: false, error: error.message });
   }
 };
 

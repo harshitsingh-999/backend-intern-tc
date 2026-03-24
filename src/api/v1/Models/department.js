@@ -16,7 +16,8 @@ const Department = sequelize.define('departments', {
   description: DataTypes.STRING(255),
   head_id: DataTypes.INTEGER
 }, {
-  timestamps: true
+  timestamps: true,
+  updatedAt: false
 });
 
 export default Department;

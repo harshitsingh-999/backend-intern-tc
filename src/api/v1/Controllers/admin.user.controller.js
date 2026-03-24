@@ -100,67 +100,59 @@ class AdminUserController {
   }
 
   // CREATE USER
-  async createUser(req, res) {
-    try {
-      const { name, email, password, phone, address, role_id, dept_id, is_active } = req.body;
+ async createUser(req, res) {
+  try {
+    const { name, email, password, phone, address, role_id, dept_id, department, is_active } = req.body;
 
-      if (!name || !email || !password) {
-        return responseEmmiter(res, { status: 400, message: 'name, email and password are required' });
-      }
-
-      const existing = await User.findOne({ where: { email } });
-      if (existing) {
-        return responseEmmiter(res, { status: 409, message: 'Email already registered' });
-      }
-
-      const hashedPassword = await bcrypt.hash(password, 10);
-
-      const user = await User.create({
-        name,
-        email,
-        password: hashedPassword,
-        phone: phone || null,
-        address: address || null,
-        role_id: role_id || 4,
-        dept_id: dept_id || null,
-        is_active: is_active !== undefined ? is_active : 1,
-      });
-
-      // Send email notification to new user
-      await sendEmail(
-        email,
-        "Internship Portal - Account Created",
-        `Hello ${name},
-
-Your account has been created successfully by the Admin.
-
-Email: ${email}
-Password: ${password}
-
-Please login and change your password.
-Link: http://localhost:5173/login
-
-Thank you.`
-      );
-
-      const { password: _, ...userData } = user.toJSON();
-
-      return responseEmmiter(res, {
-        status: 201,
-        message: 'User created successfully',
-        data: userData,
-      });
-    } catch (error) {
-      logger.error(error);
-      return responseEmmiter(res, { status: 500, message: 'Internal Server Error' });
+    if (!name || !email || !password) {
+      return responseEmmiter(res, { status: 400, message: 'name, email and password are required' });
     }
+
+    const existing = await User.findOne({ where: { email } });
+    if (existing) {
+      return responseEmmiter(res, { status: 409, message: 'Email already registered' });
+    }
+
+    // Resolve dept_id: accept numeric dept_id OR department name string
+    let resolvedDeptId = dept_id || null;
+    if (!resolvedDeptId && department) {
+      const dept = await Department.findOne({ where: { dept_name: department } });
+      if (dept) resolvedDeptId = dept.id;
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    const user = await User.create({
+      name,
+      email,
+      password: hashedPassword,
+      phone: phone || null,
+      address: address || null,
+      role_id: role_id || 4,
+      dept_id: resolvedDeptId,
+      is_active: is_active !== undefined ? is_active : 1,
+    });
+
+    await sendEmail(
+      email,
+      "Internship Portal - Account Created",
+      `Hello ${name},\n\nYour account has been created successfully by the Admin.\n\nEmail: ${email}\nPassword: ${password}\n\nPlease login and change your password.\nLink: http://localhost:5173/login\n\nThank you.`
+    );
+
+    const { password: _, ...userData } = user.toJSON();
+    return responseEmmiter(res, { status: 201, message: 'User created successfully', data: userData });
+  } catch (error) {
+    logger.error(error);
+    return responseEmmiter(res, { status: 500, message: 'Internal Server Error' });
   }
+}
 
   // UPDATE USER
   async updateUser(req, res) {
     try {
       const { id } = req.params;
-      const { name, email, phone, address, role_id, dept_id, is_active, password } = req.body;
+      // const { name, email, phone, address, role_id, dept_id, is_active, password } = req.body;
+      const { name, email, phone, address, role_id, dept_id, department, is_active, password } = req.body;
 
       const user = await User.findByPk(id);
       if (!user) {
@@ -180,7 +172,16 @@ Thank you.`
       if (phone !== undefined) updateData.phone = phone;
       if (address !== undefined) updateData.address = address;
       if (role_id !== undefined) updateData.role_id = role_id;
-      if (dept_id !== undefined) updateData.dept_id = dept_id;
+      if (dept_id !== undefined) {
+  updateData.dept_id = dept_id;
+} else if (department !== undefined) {
+  if (department === '' || department === null) {
+    updateData.dept_id = null;
+  } else {
+    const dept = await Department.findOne({ where: { dept_name: department } });
+    updateData.dept_id = dept ? dept.id : null;
+  }
+}
       if (is_active !== undefined) updateData.is_active = is_active;
 
       if (password) {
