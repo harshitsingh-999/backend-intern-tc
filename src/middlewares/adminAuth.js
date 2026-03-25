@@ -1,6 +1,6 @@
-import jwt from 'jsonwebtoken';
 import User from '../api/v1/Models/user.js';
 import Role from '../api/v1/Models/role.js';
+import { verifyAccessToken } from '../utils/authTokens.js';
 
 export default async (req, res, next) => {
   const token = req.cookies?.token;
@@ -13,7 +13,7 @@ export default async (req, res, next) => {
   }
 
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const decoded = verifyAccessToken(token);
     const user = await User.findByPk(decoded.id, {
       include: [{ model: Role, as: 'role' }]  // lowercase 'role' matches your User model association
     });
@@ -26,8 +26,15 @@ export default async (req, res, next) => {
     if (roleName !== 'admin') return res.status(403).json({ success: false, message: 'Admin access required' });
 
     req.user = user;
+    req.auth = {
+      accessTokenExpiresAt: decoded?.exp ? new Date(decoded.exp * 1000).toISOString() : null
+    };
     next();
   } catch (error) {
-    res.status(401).json({ success: false, message: 'Invalid or expired token' });
+    res.status(401).json({
+      success: false,
+      code: error?.name === "TokenExpiredError" ? "TOKEN_EXPIRED" : "TOKEN_INVALID",
+      message: error?.name === "TokenExpiredError" ? "Access token expired" : 'Invalid or expired token'
+    });
   }
 };

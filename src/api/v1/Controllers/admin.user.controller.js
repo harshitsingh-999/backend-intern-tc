@@ -6,14 +6,25 @@ import Department from '../Models/department.js';
 import responseEmmiter from '../../../helper/response.js';
 import logger from '../../../helper/logger.js';
 import { sendEmail } from '../../../utils/sendEmail.js';
+import {
+  isPositiveInteger,
+  isValidEmail,
+  isValidPassword,
+  isValidPhone,
+  normalizeEmail,
+  normalizeOptionalString,
+  parseBooleanFlag,
+  parsePositiveInteger,
+  toTrimmedString,
+} from '../../../validators/validators.js';
 
 class AdminUserController {
 
   // GET ALL USERS
   async getAllUsers(req, res) {
     try {
-      const page = parseInt(req.query.page) || 1;
-      const limit = parseInt(req.query.limit) || 10;
+      const page = Math.max(parseInt(req.query.page, 10) || 1, 1);
+      const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 10, 1), 100);
       const search = req.query.search || '';
       const offset = (page - 1) * limit;
 
@@ -68,6 +79,10 @@ class AdminUserController {
     try {
       const { id } = req.params;
 
+      if (!isPositiveInteger(id)) {
+        return responseEmmiter(res, { status: 400, message: 'A valid user id is required' });
+      }
+
       const user = await User.findByPk(id, {
         include: [
           { model: Role, attributes: ['id', 'role_name'] },
@@ -102,13 +117,63 @@ class AdminUserController {
   // CREATE USER
  async createUser(req, res) {
   try {
-    const { name, email, password, phone, address, role_id, dept_id, department, is_active } = req.body;
+    const {
+      name,
+      email,
+      password,
+      phone,
+      address,
+      role_id,
+      dept_id,
+      department,
+      is_active,
+    } = req.body;
 
-    if (!name || !email || !password) {
+    const normalizedName = toTrimmedString(name);
+    const normalizedEmail = normalizeEmail(email);
+    const normalizedPhone = normalizeOptionalString(phone);
+    const normalizedAddress = normalizeOptionalString(address);
+    const normalizedPassword = String(password || '');
+
+    if (!normalizedName || !normalizedEmail || !normalizedPassword) {
       return responseEmmiter(res, { status: 400, message: 'name, email and password are required' });
     }
 
-    const existing = await User.findOne({ where: { email } });
+    if (!isValidEmail(normalizedEmail)) {
+      return responseEmmiter(res, { status: 400, message: 'Please provide a valid email address' });
+    }
+
+    if (!isValidPassword(normalizedPassword)) {
+      return responseEmmiter(res, {
+        status: 400,
+        message: 'Password must include @, !, 1 and 2',
+      });
+    }
+
+    if (normalizedPhone && !isValidPhone(normalizedPhone)) {
+      return responseEmmiter(res, { status: 400, message: 'Please provide a valid phone number' });
+    }
+
+    if (role_id !== undefined && !isPositiveInteger(role_id)) {
+      return responseEmmiter(res, { status: 400, message: 'role_id must be a valid numeric id' });
+    }
+
+    if (dept_id !== undefined && dept_id !== null && dept_id !== '' && !isPositiveInteger(dept_id)) {
+      return responseEmmiter(res, { status: 400, message: 'dept_id must be a valid numeric id' });
+    }
+
+    const parsedIsActive = parseBooleanFlag(is_active);
+    if (is_active !== undefined && parsedIsActive === null) {
+      return responseEmmiter(res, { status: 400, message: 'is_active must be true/false or 1/0' });
+    }
+
+    const parsedRoleId = parsePositiveInteger(role_id) || 4;
+    const role = await Role.findByPk(parsedRoleId);
+    if (!role) {
+      return responseEmmiter(res, { status: 404, message: 'Role not found' });
+    }
+
+    const existing = await User.findOne({ where: { email: normalizedEmail } });
     if (existing) {
       return responseEmmiter(res, { status: 409, message: 'Email already registered' });
     }
@@ -116,27 +181,30 @@ class AdminUserController {
     // Resolve dept_id: accept numeric dept_id OR department name string
     let resolvedDeptId = dept_id || null;
     if (!resolvedDeptId && department) {
-      const dept = await Department.findOne({ where: { dept_name: department } });
+      const dept = await Department.findOne({ where: { dept_name: toTrimmedString(department) } });
       if (dept) resolvedDeptId = dept.id;
     }
+    if (resolvedDeptId && !await Department.findByPk(resolvedDeptId)) {
+      return responseEmmiter(res, { status: 404, message: 'Department not found' });
+    }
 
-    const hashedPassword = await bcrypt.hash(password, 10);
+    const hashedPassword = await bcrypt.hash(normalizedPassword, 10);
 
     const user = await User.create({
-      name,
-      email,
+      name: normalizedName,
+      email: normalizedEmail,
       password: hashedPassword,
-      phone: phone || null,
-      address: address || null,
-      role_id: role_id || 4,
+      phone: normalizedPhone,
+      address: normalizedAddress,
+      role_id: parsedRoleId,
       dept_id: resolvedDeptId,
-      is_active: is_active !== undefined ? is_active : 1,
+      is_active: parsedIsActive !== undefined ? parsedIsActive : 1,
     });
 
     await sendEmail(
-      email,
+      normalizedEmail,
       "Internship Portal - Account Created",
-      `Hello ${name},\n\nYour account has been created successfully by the Admin.\n\nEmail: ${email}\nPassword: ${password}\n\nPlease login and change your password.\nLink: http://localhost:5173/login\n\nThank you.`
+      `Hello ${normalizedName},\n\nYour account has been created successfully by the Admin.\n\nEmail: ${normalizedEmail}\nPassword: ${normalizedPassword}\n\nPlease login and change your password.\nLink: http://localhost:5173/login\n\nThank you.`
     );
 
     const { password: _, ...userData } = user.toJSON();
@@ -154,38 +222,99 @@ class AdminUserController {
       // const { name, email, phone, address, role_id, dept_id, is_active, password } = req.body;
       const { name, email, phone, address, role_id, dept_id, department, is_active, password } = req.body;
 
+      if (!isPositiveInteger(id)) {
+        return responseEmmiter(res, { status: 400, message: 'A valid user id is required' });
+      }
+
       const user = await User.findByPk(id);
       if (!user) {
         return responseEmmiter(res, { status: 404, message: 'User not found' });
       }
 
-      if (email && email !== user.email) {
-        const emailExists = await User.findOne({ where: { email } });
+      const normalizedEmail = email !== undefined ? normalizeEmail(email) : undefined;
+      const normalizedName = name !== undefined ? toTrimmedString(name) : undefined;
+      const normalizedPhone = normalizeOptionalString(phone);
+      const normalizedAddress = normalizeOptionalString(address);
+      const normalizedPassword = password !== undefined ? String(password || '') : undefined;
+
+      if (normalizedName !== undefined && !normalizedName) {
+        return responseEmmiter(res, { status: 400, message: 'name cannot be empty' });
+      }
+
+      if (normalizedEmail !== undefined) {
+        if (!normalizedEmail || !isValidEmail(normalizedEmail)) {
+          return responseEmmiter(res, { status: 400, message: 'Please provide a valid email address' });
+        }
+      }
+
+      if (normalizedPhone && !isValidPhone(normalizedPhone)) {
+        return responseEmmiter(res, { status: 400, message: 'Please provide a valid phone number' });
+      }
+
+      if (normalizedPassword !== undefined && normalizedPassword && !isValidPassword(normalizedPassword)) {
+        return responseEmmiter(res, {
+          status: 400,
+          message: 'Password must include @, !, 1 and 2',
+        });
+      }
+
+      if (role_id !== undefined && !isPositiveInteger(role_id)) {
+        return responseEmmiter(res, { status: 400, message: 'role_id must be a valid numeric id' });
+      }
+
+      if (dept_id !== undefined && dept_id !== null && dept_id !== '' && !isPositiveInteger(dept_id)) {
+        return responseEmmiter(res, { status: 400, message: 'dept_id must be a valid numeric id' });
+      }
+
+      const parsedIsActive = parseBooleanFlag(is_active);
+      if (is_active !== undefined && parsedIsActive === null) {
+        return responseEmmiter(res, { status: 400, message: 'is_active must be true/false or 1/0' });
+      }
+
+      if (normalizedEmail && normalizedEmail !== user.email) {
+        const emailExists = await User.findOne({ where: { email: normalizedEmail } });
         if (emailExists) {
           return responseEmmiter(res, { status: 409, message: 'Email already in use by another user' });
         }
       }
 
       const updateData = {};
-      if (name !== undefined) updateData.name = name;
-      if (email !== undefined) updateData.email = email;
-      if (phone !== undefined) updateData.phone = phone;
-      if (address !== undefined) updateData.address = address;
-      if (role_id !== undefined) updateData.role_id = role_id;
+      if (normalizedName !== undefined) updateData.name = normalizedName;
+      if (normalizedEmail !== undefined) updateData.email = normalizedEmail;
+      if (phone !== undefined) updateData.phone = normalizedPhone;
+      if (address !== undefined) updateData.address = normalizedAddress;
+      if (role_id !== undefined) {
+        const role = await Role.findByPk(Number(role_id));
+        if (!role) {
+          return responseEmmiter(res, { status: 404, message: 'Role not found' });
+        }
+        updateData.role_id = Number(role_id);
+      }
       if (dept_id !== undefined) {
-  updateData.dept_id = dept_id;
-} else if (department !== undefined) {
-  if (department === '' || department === null) {
-    updateData.dept_id = null;
-  } else {
-    const dept = await Department.findOne({ where: { dept_name: department } });
-    updateData.dept_id = dept ? dept.id : null;
-  }
-}
-      if (is_active !== undefined) updateData.is_active = is_active;
+        if (dept_id === null || dept_id === '') {
+          updateData.dept_id = null;
+        } else {
+          const departmentRecord = await Department.findByPk(Number(dept_id));
+          if (!departmentRecord) {
+            return responseEmmiter(res, { status: 404, message: 'Department not found' });
+          }
+          updateData.dept_id = Number(dept_id);
+        }
+      } else if (department !== undefined) {
+        if (department === '' || department === null) {
+          updateData.dept_id = null;
+        } else {
+          const dept = await Department.findOne({ where: { dept_name: toTrimmedString(department) } });
+          if (!dept) {
+            return responseEmmiter(res, { status: 404, message: 'Department not found' });
+          }
+          updateData.dept_id = dept.id;
+        }
+      }
+      if (parsedIsActive !== undefined) updateData.is_active = parsedIsActive;
 
-      if (password) {
-        updateData.password = await bcrypt.hash(password, 10);
+      if (normalizedPassword) {
+        updateData.password = await bcrypt.hash(normalizedPassword, 10);
       }
 
       await user.update(updateData);
@@ -207,6 +336,10 @@ class AdminUserController {
   async deleteUser(req, res) {
     try {
       const { id } = req.params;
+
+      if (!isPositiveInteger(id)) {
+        return responseEmmiter(res, { status: 400, message: 'A valid user id is required' });
+      }
 
       if (parseInt(id) === req.user.id) {
         return responseEmmiter(res, { status: 400, message: 'You cannot delete your own account' });
@@ -234,6 +367,10 @@ class AdminUserController {
   async toggleUserStatus(req, res) {
     try {
       const { id } = req.params;
+
+      if (!isPositiveInteger(id)) {
+        return responseEmmiter(res, { status: 400, message: 'A valid user id is required' });
+      }
 
       const user = await User.findByPk(id);
       if (!user) {
