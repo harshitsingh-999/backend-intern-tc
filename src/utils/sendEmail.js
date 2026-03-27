@@ -4,9 +4,32 @@ import logger from "../helper/logger.js";
 
 dotenv.config();
 
-const PORTAL_BASE_URL = process.env.FRONTEND_URL || "http://localhost:5173";
-const PORTAL_LOGIN_URL = `${PORTAL_BASE_URL.replace(/\/$/, "")}/login`;
+const DEFAULT_PORTAL_BASE_URL = "http://localhost:5173";
 const APP_TIMEZONE = process.env.APP_TIMEZONE || "Asia/Kolkata";
+
+export const getPortalBaseUrl = () => {
+  const configuredOrigins = String(process.env.FRONTEND_URL || "")
+    .split(",")
+    .map((origin) => origin.trim())
+    .filter(Boolean);
+
+  return (configuredOrigins[0] || DEFAULT_PORTAL_BASE_URL).replace(/\/$/, "");
+};
+
+export const buildPortalUrl = (pathname = "/", query = {}) => {
+  const normalizedPath = pathname.startsWith("/") ? pathname : `/${pathname}`;
+  const url = new URL(normalizedPath, `${getPortalBaseUrl()}/`);
+
+  Object.entries(query).forEach(([key, value]) => {
+    if (value !== undefined && value !== null && value !== "") {
+      url.searchParams.set(key, String(value));
+    }
+  });
+
+  return url.toString();
+};
+
+const PORTAL_LOGIN_URL = buildPortalUrl("/login");
 
 const transporter = nodemailer.createTransport({
   service: "gmail",
@@ -47,37 +70,29 @@ const truncateText = (value = "", maxLength = 180) => {
   return `${normalized.slice(0, maxLength - 3)}...`;
 };
 
-const buildEmailLayout = ({ heading, intro, details = [], ctaLabel, ctaHref, footer }) => {
-  const detailRows = details
-    .filter((item) => item?.label && item?.value !== undefined && item?.value !== null && item?.value !== "")
-    .map((item) => `
-      <tr>
-        <td style="padding: 8px 0; color: #4b5563; font-weight: 600; width: 160px;">${escapeHtml(item.label)}</td>
-        <td style="padding: 8px 0; color: #111827;">${escapeHtml(item.value)}</td>
-      </tr>
-    `)
-    .join("");
+const buildEmailLayout = ({ name, email, password, loginUrl }) => {
+  return buildEmailLayout({
+    heading: "Your Account Has Been Created 🎉",
+    
+    intro: `Hello ${name},
 
-  return `
-    <div style="background:#f3f4f6;padding:24px;font-family:Arial,sans-serif;">
-      <div style="max-width:640px;margin:0 auto;background:#ffffff;border-radius:12px;padding:24px;border:1px solid #e5e7eb;">
-        <h2 style="margin:0 0 12px;color:#111827;">${escapeHtml(heading)}</h2>
-        <p style="margin:0 0 20px;color:#374151;line-height:1.6;">${escapeHtml(intro)}</p>
-        <table style="width:100%;border-collapse:collapse;margin-bottom:20px;">
-          ${detailRows}
-        </table>
-        ${ctaHref ? `
-          <a href="${escapeHtml(ctaHref)}" style="display:inline-block;background:#2563eb;color:#ffffff;text-decoration:none;padding:12px 18px;border-radius:8px;font-weight:600;">
-            ${escapeHtml(ctaLabel || "Open Portal")}
-          </a>
-        ` : ""}
-        <p style="margin:20px 0 0;color:#6b7280;font-size:13px;line-height:1.6;">
-          ${escapeHtml(footer || "Please log in to the Intern Management portal for full details.")}
-        </p>
-      </div>
-    </div>
-  `;
+Your account for the Intern Management System has been successfully created. Please find your login credentials below:`,
+
+    details: [
+      { label: "Email", value: email },
+      { label: "Password", value: password },
+      { label: "Login URL", value: loginUrl }
+    ],
+
+    ctaLabel: "Login Now",
+    ctaHref: loginUrl,
+
+    footer: `For security reasons, we recommend changing your password after your first login.
+
+If you face any issues, please contact your administrator.`
+  });
 };
+
 
 const isEmailConfigured = () => Boolean(process.env.EMAIL_USER && process.env.EMAIL_PASS);
 
@@ -201,4 +216,20 @@ export const sendTaskDeadlineReminderEmail = async ({
   });
 
   return sendEmail(assigneeEmail, `${heading}: ${title}`, html);
+};
+
+export const sendPasswordResetEmail = async ({ toEmail, userName, resetLink }) => {
+  const html = buildEmailLayout({
+    heading: "Reset Your Password",
+    intro: `Hello ${userName || "User"}, we received a request to reset your password.`,
+    details: [
+      { label: "Requested For", value: toEmail },
+      { label: "Link Expires", value: "15 minutes from now" },
+    ],
+    ctaLabel: "Reset Password",
+    ctaHref: resetLink,
+    footer: "If you did not request this, you can safely ignore this email. Your password will not change.",
+  });
+
+  return sendEmail(toEmail, "Password Reset Request", html);
 };

@@ -11,6 +11,9 @@ import {
   issueAuthTokens,
   verifyRefreshToken
 } from "../../../utils/authTokens.js";
+import crypto from "crypto";
+import { buildPortalUrl, sendPasswordResetEmail } from "../../../utils/sendEmail.js";
+import { isValidPassword } from "../../../validators/validators.js";
 
 class AuthController {
   async login(req, res) {
@@ -218,6 +221,84 @@ class AuthController {
       message: "Logged out successfully"
     });
   }
+
+  async forgotPassword(req, res) {
+  try {
+    const { email } = req.body;
+    const normalizedEmail = normalizeEmail(email);
+
+    if (!normalizedEmail || !isValidEmail(normalizedEmail)) {
+      return responseEmmiter(res, { status: 400, message: "Please enter a valid email address" });
+    }
+
+    const user = await User.findOne({ where: { email: normalizedEmail } });
+
+    // Always respond with success to prevent email enumeration
+    if (!user || !user.is_active) {
+      return responseEmmiter(res, {
+        status: 200,
+        message: "If this email is registered, a reset link has been sent.",
+      });
+    }
+
+    const token = crypto.randomBytes(32).toString("hex");
+    const expires = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes
+
+    user.password_reset_token = token;
+    user.password_reset_expires = expires;
+    await user.save();
+
+    const resetLink = buildPortalUrl("/reset-password", { token });
+
+    await sendPasswordResetEmail({
+      toEmail: user.email,
+      userName: user.name,
+      resetLink,
+    });
+
+    return responseEmmiter(res, {
+      status: 200,
+      message: "If this email is registered, a reset link has been sent.",
+    });
+  } catch (error) {
+    logger.error(error);
+    return responseEmmiter(res, { status: 500, message: "Internal Server Error" });
+  }
 }
+
+async resetPassword(req, res) {
+  try {
+    const { token, password } = req.body;
+
+    if (!token || !password) {
+      return responseEmmiter(res, { status: 400, message: "Token and new password are required" });
+    }
+
+    if (!isValidPassword(password)) {
+      return responseEmmiter(res, {
+        status: 400,
+        message: "Password must be at least 8 characters and include uppercase, lowercase, number, and special character.",
+      });
+    }
+
+    const user = await User.findOne({ where: { password_reset_token: token } });
+
+    if (!user || !user.password_reset_expires || new Date() > user.password_reset_expires) {
+      return responseEmmiter(res, { status: 400, message: "Reset link is invalid or has expired." });
+    }
+
+    user.password = await bcrypt.hash(password, 10);
+    user.password_reset_token = null;
+    user.password_reset_expires = null;
+    await user.save();
+
+    return responseEmmiter(res, { status: 200, message: "Password reset successfully. You can now log in." });
+  } catch (error) {
+    logger.error(error);
+    return responseEmmiter(res, { status: 500, message: "Internal Server Error" });
+  }
+}
+}
+
 
 export default new AuthController();

@@ -6,6 +6,7 @@ import Department from '../Models/department.js';
 import responseEmmiter from '../../../helper/response.js';
 import logger from '../../../helper/logger.js';
 import { sendEmail } from '../../../utils/sendEmail.js';
+
 import {
   isPositiveInteger,
   isValidEmail,
