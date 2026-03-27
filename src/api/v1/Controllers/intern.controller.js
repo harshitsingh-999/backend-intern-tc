@@ -9,6 +9,7 @@ import rootPath from "../../../helper/rootPath.js";
 import Trainee    from "../Models/trainee.js";
 import Evaluation from "../Models/evaluation.js";
 import { sendTaskSubmittedEmail } from "../../../utils/sendEmail.js";
+import { createNotification } from "./notification.controller.js";
 
 const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024;
 
@@ -297,6 +298,25 @@ export const applyLeave = async (req, res) => {
         return res.status(400).json({ success: false, message: "You have already checked in on this date" });
       }
       await existing.update({ status: 'pending_leave', leave_reason: leave_reason || null, leave_type, remarks: null });
+
+      if (trainee.manager_id) {
+        await createNotification({
+          user_id: trainee.manager_id,
+          title: 'New leave request',
+          message: `${req.user.name} submitted a ${leave_type} leave request for ${leave_date}.`,
+          type: 'leave',
+          link: '/attendance'
+        });
+      }
+
+      await createNotification({
+        user_id: req.user.id,
+        title: 'Leave request submitted',
+        message: `Your ${leave_type} leave request for ${leave_date} was submitted to your manager.`,
+        type: 'leave',
+        link: '/my-leaves'
+      });
+
       return res.status(200).json({ success: true, message: "Leave request submitted for approval", data: existing });
     }
 
@@ -306,6 +326,24 @@ export const applyLeave = async (req, res) => {
       status: 'pending_leave',
       leave_reason: leave_reason || null,
       leave_type,
+    });
+
+    if (trainee.manager_id) {
+      await createNotification({
+        user_id: trainee.manager_id,
+        title: 'New leave request',
+        message: `${req.user.name} submitted a ${leave_type} leave request for ${leave_date}.`,
+        type: 'leave',
+        link: '/attendance'
+      });
+    }
+
+    await createNotification({
+      user_id: req.user.id,
+      title: 'Leave request submitted',
+      message: `Your ${leave_type} leave request for ${leave_date} was submitted to your manager.`,
+      type: 'leave',
+      link: '/my-leaves'
     });
 
     return res.status(201).json({ success: true, message: "Leave request submitted for approval", data: record });
@@ -364,6 +402,17 @@ export const cancelLeave = async (req, res) => {
     }
 
     await record.destroy();
+
+    if (trainee.manager_id) {
+      await createNotification({
+        user_id: trainee.manager_id,
+        title: 'Leave request cancelled',
+        message: `${req.user.name} cancelled the leave request for ${record.attendance_date}.`,
+        type: 'leave',
+        link: '/attendance'
+      });
+    }
+
     return res.status(200).json({ success: true, message: "Leave request cancelled successfully" });
   } catch (error) {
     logger.error(error);

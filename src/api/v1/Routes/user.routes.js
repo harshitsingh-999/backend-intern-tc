@@ -10,8 +10,8 @@ const router = express.Router();
 // Public routes
 router.post("/register", registerUser);
 router.post("/login", loginUser);
-router.post("/forgot-password", forgotPassword);
-router.post("/reset-password", resetPassword);
+// router.post("/forgot-password", forgotPassword);
+// router.post("/reset-password", resetPassword);
 router.post("/upload-profile", authenticate, upload.single("image"), uploadProfile);
 
 // Protected: any authenticated user can read dashboard stats

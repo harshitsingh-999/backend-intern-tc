@@ -26,6 +26,7 @@ import {
   getInternAttendance,
   deleteProject,
 } from "../Controllers/manager.controller.js";
+import { getInternDailyReports, acknowledgeDailyReport } from '../Controllers/dailyreport.controller.js';
 
 const router = express.Router();
 
@@ -60,5 +61,7 @@ router.get("/projects", getMyProjects);
 router.post("/projects", createProject);
 router.delete("/projects/:id", deleteProject);
 router.get("/project-progress", getProjectProgress);
+router.get('/daily-reports', getInternDailyReports);
+router.patch('/daily-reports/:id/acknowledge', acknowledgeDailyReport);
 
 export default router;

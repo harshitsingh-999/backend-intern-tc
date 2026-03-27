@@ -10,8 +10,15 @@ import TaskSubmission from './taskSubmission.js';
 import Attendance from './attendance.js';
 import Evaluation from './evaluation.js';
 import Feedback from './feedback.js';
+import DailyReport from './dailyreports.js';
+import InternDocument from './internDocument.js';
 
 const setupAssociations = () => {
+
+
+InternDocument.belongsTo(User, { as: 'intern', foreignKey: 'user_id' });
+User.hasMany(InternDocument, { foreignKey: 'user_id' });
+
 
   // ===== USER RELATIONS =====
   User.belongsTo(Role, { foreignKey: 'role_id' });
@@ -67,6 +74,12 @@ const setupAssociations = () => {
   Trainee.hasMany(Feedback, { foreignKey: 'trainee_id' });
 
   Feedback.belongsTo(User, { as: 'feedbackBuddy', foreignKey: 'buddy_id' });
+
+  // ====== Daily Report ========
+
+  DailyReport.belongsTo(User, { as: 'intern', foreignKey: 'intern_user_id' });
+  DailyReport.belongsTo(User, { as: 'manager', foreignKey: 'manager_user_id' });
+  User.hasMany(DailyReport, { foreignKey: 'intern_user_id' });
 };
 
 export default setupAssociations;
