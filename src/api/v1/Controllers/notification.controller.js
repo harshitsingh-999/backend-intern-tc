@@ -36,6 +36,26 @@ export const markAllAsRead = async (req, res) => {
   }
 };
 
+// Get single notification with link for navigation
+export const getNotificationDetail = async (req, res) => {
+  try {
+    const notification = await Notification.findOne({
+      where: { id: req.params.id, user_id: req.user.id }
+    });
+    if (!notification) {
+      return responseEmmiter(res, { status: 404, message: 'Notification not found' });
+    }
+    
+    // Mark as read when user views it
+    await notification.update({ is_read: true });
+    
+    return responseEmmiter(res, { status: 200, data: notification });
+  } catch (error) {
+    logger.error(error);
+    return responseEmmiter(res, { status: 500, message: 'Internal Server Error' });
+  }
+};
+
 // Helper — call this from other controllers to push notifications
 export const createNotification = async ({ user_id, title, message, type = 'general', link = null }) => {
   try {

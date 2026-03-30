@@ -3,6 +3,7 @@ import Trainee from '../Models/trainee.js';
 import User from '../Models/user.js';
 import logger from '../../../helper/logger.js';
 import { createNotification } from './notification.controller.js';
+import { sendEmail } from '../../../utils/sendEmail.js';
 
 const sendSuccess = (res, status, message, data) => {
   return res.status(status).json({ success: true, status: true, message, data });
@@ -43,13 +44,24 @@ export const submitDailyReport = async (req, res) => {
       intern_user_id, manager_user_id, report_date, work_done, blockers, plan_tomorrow,
     });
 
-    await createNotification({
-      user_id: manager_user_id,
-      title: 'New daily report',
-      message: `${req.user.name} submitted a daily report for ${report_date}.`,
-      type: 'report',
-      link: '/daily-reports'
-    });
+   const manager = await User.findByPk(manager_user_id);
+
+await createNotification({
+  user_id: manager_user_id,
+  title: 'New daily report',
+  message: `${req.user.name} submitted a daily report for ${report_date}.`,
+  type: 'report',
+  link: `/manager/reports/${report.id}`
+});
+
+// ✅ EMAIL SEND
+if (manager?.email) {
+  await sendEmail({
+    to: manager.email,
+    subject: "New Daily Report Submitted",
+    text: `${req.user.name} submitted report:\n\n${work_done}\n\nBlockers: ${blockers}\nPlan: ${plan_tomorrow}`
+  });
+}
 
     return sendSuccess(res, 201, 'Daily report submitted.', report);
   } catch (error) {
@@ -85,6 +97,30 @@ export const getInternDailyReports = async (req, res) => {
   } catch (error) {
     logger.error(error);
     return sendError(res, 500, 'Internal Server Error');
+  }
+};
+
+// Manager fetch reports
+export const getManagerReports = async (req, res) => {
+  try {
+    const manager_user_id = req.user.id;
+
+    const reports = await DailyReport.findAll({
+      where: { manager_user_id },
+      include: [
+        {
+          model: User,
+          as: "intern",
+          attributes: ["id", "name", "email"]
+        }
+      ],
+      order: [["createdAt", "DESC"]]
+    });
+
+    return sendSuccess(res, 200, "Reports fetched", reports);
+  } catch (error) {
+    logger.error(error);
+    return sendError(res, 500, "Error fetching reports");
   }
 };
 

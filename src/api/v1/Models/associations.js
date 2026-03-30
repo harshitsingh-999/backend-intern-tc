@@ -12,6 +12,7 @@ import Evaluation from './evaluation.js';
 import Feedback from './feedback.js';
 import DailyReport from './dailyreports.js';
 import InternDocument from './internDocument.js';
+import ProfileChangeRequest from './profileChangeRequest.js';
 
 const setupAssociations = () => {
 
@@ -19,6 +20,11 @@ const setupAssociations = () => {
 InternDocument.belongsTo(User, { as: 'intern', foreignKey: 'user_id' });
 User.hasMany(InternDocument, { foreignKey: 'user_id' });
 
+  // ===== PROFILE CHANGE REQUESTS =====
+  ProfileChangeRequest.belongsTo(User, { as: 'requestor', foreignKey: 'user_id' });
+  User.hasMany(ProfileChangeRequest, { foreignKey: 'user_id' });
+  
+  ProfileChangeRequest.belongsTo(User, { as: 'reviewer', foreignKey: 'reviewed_by' });
 
   // ===== USER RELATIONS =====
   User.belongsTo(Role, { foreignKey: 'role_id' });

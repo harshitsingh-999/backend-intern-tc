@@ -49,6 +49,7 @@ password_reset_expires: {
     type: DataTypes.STRING(255),
     allowNull: true
   }
+  
 }, {
   timestamps: true
 }
