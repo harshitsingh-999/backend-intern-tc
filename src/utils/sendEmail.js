@@ -70,27 +70,33 @@ const truncateText = (value = "", maxLength = 180) => {
   return `${normalized.slice(0, maxLength - 3)}...`;
 };
 
-const buildEmailLayout = ({ name, email, password, loginUrl }) => {
-  return buildEmailLayout({
-    heading: "Your Account Has Been Created 🎉",
-    
-    intro: `Hello ${name},
+const buildEmailLayout = ({ heading, intro, details = [], ctaLabel, ctaHref, footer }) => {
+  const detailRows = details
+    .map(({ label, value }) =>
+      `<tr>
+        <td style="padding:6px 14px 6px 0;font-weight:600;color:#374151;white-space:nowrap;vertical-align:top;">${escapeHtml(label)}</td>
+        <td style="padding:6px 0;color:#4b5563;">${escapeHtml(String(value || "—"))}</td>
+      </tr>`
+    )
+    .join("");
 
-Your account for the Intern Management System has been successfully created. Please find your login credentials below:`,
-
-    details: [
-      { label: "Email", value: email },
-      { label: "Password", value: password },
-      { label: "Login URL", value: loginUrl }
-    ],
-
-    ctaLabel: "Login Now",
-    ctaHref: loginUrl,
-
-    footer: `For security reasons, we recommend changing your password after your first login.
-
-If you face any issues, please contact your administrator.`
-  });
+  return `
+    <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;background:#fff;padding:32px;border-radius:10px;border:1px solid #e5e7eb;">
+      <div style="background:#2563eb;color:#fff;padding:20px 24px;border-radius:8px;margin-bottom:24px;">
+        <h2 style="margin:0;font-size:20px;">${escapeHtml(heading)}</h2>
+      </div>
+      <p style="color:#4b5563;line-height:1.6;white-space:pre-line;">${escapeHtml(intro)}</p>
+      ${details.length
+        ? `<table style="width:100%;border-collapse:collapse;margin:16px 0;background:#f9fafb;padding:12px;border-radius:8px;">${detailRows}</table>`
+        : ""}
+      ${ctaHref
+        ? `<a href="${ctaHref}" style="display:inline-block;margin:16px 0;padding:11px 26px;background:#2563eb;color:#fff;border-radius:7px;text-decoration:none;font-weight:600;">${escapeHtml(ctaLabel || "Open Portal")}</a>`
+        : ""}
+      ${footer
+        ? `<p style="color:#9ca3af;font-size:13px;margin-top:20px;border-top:1px solid #f3f4f6;padding-top:14px;line-height:1.5;">${escapeHtml(footer)}</p>`
+        : ""}
+    </div>
+  `;
 };
 
 
@@ -232,4 +238,28 @@ export const sendPasswordResetEmail = async ({ toEmail, userName, resetLink }) =
   });
 
   return sendEmail(toEmail, "Password Reset Request", html);
+};
+
+export const sendDailyReportEmail = async ({
+  managerEmail, managerName, internName,
+  reportDate, workDone, blockers, planTomorrow
+}) => {
+  const details = [
+    { label: "Submitted By", value: internName || "Intern" },
+    { label: "Report Date", value: formatDate(reportDate) },
+    { label: "Work Done", value: truncateText(workDone, 300) },
+  ];
+  if (blockers) details.push({ label: "Blockers", value: truncateText(blockers, 200) });
+  if (planTomorrow) details.push({ label: "Plan for Tomorrow", value: truncateText(planTomorrow, 200) });
+
+  const html = buildEmailLayout({
+    heading: "New Daily Report Submitted",
+    intro: `Hello ${managerName || "Manager"},\n\n${internName || "An intern"} has submitted their daily work report.`,
+    details,
+    ctaLabel: "View in Portal",
+    ctaHref: buildPortalUrl("/manager/daily-reports"),
+    footer: "You can acknowledge this report from the Manager module in the portal.",
+  });
+
+  return sendEmail(managerEmail, `Daily Report from ${internName} — ${reportDate}`, html);
 };

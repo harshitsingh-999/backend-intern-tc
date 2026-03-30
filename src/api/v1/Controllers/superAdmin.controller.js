@@ -331,3 +331,111 @@ export const exportSystemData = async (req, res) => {
     res.status(500).json({ success: false, message: error.message });
   }
 };
+
+// ─── DEPARTMENT CRUD ─────────────────────────────────────────
+export const createDepartment = async (req, res) => {
+  try {
+    const { dept_name, description } = req.body;
+    if (!dept_name?.trim()) return res.status(400).json({ success: false, message: 'Department name is required.' });
+    const existing = await Department.findOne({ where: { dept_name: dept_name.trim() } });
+    if (existing) return res.status(409).json({ success: false, message: 'Department already exists.' });
+    const dept = await Department.create({ dept_name: dept_name.trim(), description: description || null });
+    res.status(201).json({ success: true, message: 'Department created.', data: dept });
+  } catch (error) {
+    logger.error(error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+export const updateDepartment = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { dept_name, description } = req.body;
+    const dept = await Department.findByPk(id);
+    if (!dept) return res.status(404).json({ success: false, message: 'Department not found.' });
+    if (dept_name?.trim()) dept.dept_name = dept_name.trim();
+    if (description !== undefined) dept.description = description;
+    await dept.save();
+    res.json({ success: true, message: 'Department updated.', data: dept });
+  } catch (error) {
+    logger.error(error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+export const deleteDepartment = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const dept = await Department.findByPk(id);
+    if (!dept) return res.status(404).json({ success: false, message: 'Department not found.' });
+    await dept.destroy();
+    res.json({ success: true, message: 'Department deleted.' });
+  } catch (error) {
+    logger.error(error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// ─── ROLE CRUD ───────────────────────────────────────────────
+export const getAllRoles = async (req, res) => {
+  try {
+    const roles = await Role.findAll({ order: [['id', 'ASC']] });
+    res.json({ success: true, data: roles });
+  } catch (error) {
+    logger.error(error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+export const createRole = async (req, res) => {
+  try {
+    const { role_name, description } = req.body;
+    if (!role_name?.trim()) return res.status(400).json({ success: false, message: 'Role name is required.' });
+    const existing = await Role.findOne({ where: { role_name: role_name.trim() } });
+    if (existing) return res.status(409).json({ success: false, message: 'Role already exists.' });
+    const role = await Role.create({ role_name: role_name.trim(), description: description || null });
+    res.status(201).json({ success: true, message: 'Role created.', data: role });
+  } catch (error) {
+    logger.error(error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+export const updateRole = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { role_name, description } = req.body;
+    const role = await Role.findByPk(id);
+    if (!role) return res.status(404).json({ success: false, message: 'Role not found.' });
+    if (role_name?.trim()) role.role_name = role_name.trim();
+    if (description !== undefined) role.description = description;
+    await role.save();
+    res.json({ success: true, message: 'Role updated.', data: role });
+  } catch (error) {
+    logger.error(error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+export const deleteRole = async (req, res) => {
+  try {
+    const { id } = req.params;
+    // Prevent deleting core system roles (1-5)
+    if (Number(id) <= 5) {
+      return res.status(403).json({ success: false, message: 'Cannot delete core system roles (Admin, Manager, Buddy, Intern, SuperAdmin).' });
+    }
+    const role = await Role.findByPk(id);
+    if (!role) return res.status(404).json({ success: false, message: 'Role not found.' });
+    // Check if any user uses this role
+    const { default: User } = await import('../Models/user.js');
+    const usersWithRole = await User.count({ where: { role_id: id } });
+    if (usersWithRole > 0) {
+      return res.status(409).json({ success: false, message: `Cannot delete: ${usersWithRole} user(s) assigned to this role.` });
+    }
+    await role.destroy();
+    res.json({ success: true, message: 'Role deleted.' });
+  } catch (error) {
+    logger.error(error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};

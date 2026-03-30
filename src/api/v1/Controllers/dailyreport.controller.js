@@ -3,15 +3,13 @@ import Trainee from '../Models/trainee.js';
 import User from '../Models/user.js';
 import logger from '../../../helper/logger.js';
 import { createNotification } from './notification.controller.js';
-import { sendEmail } from '../../../utils/sendEmail.js';
+import { sendDailyReportEmail } from '../../../utils/sendEmail.js';
 
-const sendSuccess = (res, status, message, data) => {
-  return res.status(status).json({ success: true, status: true, message, data });
-};
+const sendSuccess = (res, status, message, data) =>
+  res.status(status).json({ success: true, status: true, message, data });
 
-const sendError = (res, status, message) => {
-  return res.status(status).json({ success: false, status: false, message });
-};
+const sendError = (res, status, message) =>
+  res.status(status).json({ success: false, status: false, message });
 
 // Intern submits daily report
 export const submitDailyReport = async (req, res) => {
@@ -23,45 +21,45 @@ export const submitDailyReport = async (req, res) => {
       return sendError(res, 400, 'Report date and work done are required.');
     }
 
-    // Find intern's manager
     const trainee = await Trainee.findOne({ where: { user_id: intern_user_id } });
-    if (!trainee) {
-      return sendError(res, 404, 'Intern profile not found.');
-    }
+    if (!trainee) return sendError(res, 404, 'Intern profile not found.');
 
     const manager_user_id = trainee.manager_id || null;
-    if (!manager_user_id) {
-      return sendError(res, 400, 'No manager assigned to this intern.');
-    }
+    if (!manager_user_id) return sendError(res, 400, 'No manager assigned to this intern.');
 
-    // Prevent duplicate report for same date
     const existing = await DailyReport.findOne({ where: { intern_user_id, report_date } });
-    if (existing) {
-      return sendError(res, 409, 'Report for this date already submitted.');
-    }
+    if (existing) return sendError(res, 409, 'Report for this date already submitted.');
 
     const report = await DailyReport.create({
       intern_user_id, manager_user_id, report_date, work_done, blockers, plan_tomorrow,
     });
 
-   const manager = await User.findByPk(manager_user_id);
+    // In-app notification to manager
+    await createNotification({
+      user_id: manager_user_id,
+      title: 'New Daily Report',
+      message: `${req.user.name} submitted a daily report for ${report_date}.`,
+      type: 'report',
+      link: '/manager/daily-reports',
+    });
 
-await createNotification({
-  user_id: manager_user_id,
-  title: 'New daily report',
-  message: `${req.user.name} submitted a daily report for ${report_date}.`,
-  type: 'report',
-  link: `/manager/reports/${report.id}`
-});
-
-// ✅ EMAIL SEND
-if (manager?.email) {
-  await sendEmail({
-    to: manager.email,
-    subject: "New Daily Report Submitted",
-    text: `${req.user.name} submitted report:\n\n${work_done}\n\nBlockers: ${blockers}\nPlan: ${plan_tomorrow}`
-  });
-}
+    // Email to manager (non-blocking — failure won't break the response)
+    try {
+      const manager = await User.findByPk(manager_user_id, { attributes: ['id', 'name', 'email'] });
+      if (manager?.email) {
+        await sendDailyReportEmail({
+          managerEmail: manager.email,
+          managerName: manager.name,
+          internName: req.user.name,
+          reportDate: report_date,
+          workDone: work_done,
+          blockers,
+          planTomorrow: plan_tomorrow,
+        });
+      }
+    } catch (emailErr) {
+      logger.warn('Daily report email failed (non-blocking):', emailErr?.message);
+    }
 
     return sendSuccess(res, 201, 'Daily report submitted.', report);
   } catch (error) {
@@ -100,29 +98,8 @@ export const getInternDailyReports = async (req, res) => {
   }
 };
 
-// Manager fetch reports
-export const getManagerReports = async (req, res) => {
-  try {
-    const manager_user_id = req.user.id;
-
-    const reports = await DailyReport.findAll({
-      where: { manager_user_id },
-      include: [
-        {
-          model: User,
-          as: "intern",
-          attributes: ["id", "name", "email"]
-        }
-      ],
-      order: [["createdAt", "DESC"]]
-    });
-
-    return sendSuccess(res, 200, "Reports fetched", reports);
-  } catch (error) {
-    logger.error(error);
-    return sendError(res, 500, "Error fetching reports");
-  }
-};
+// Alias used by some routes
+export const getManagerReports = getInternDailyReports;
 
 // Manager acknowledges a report
 export const acknowledgeDailyReport = async (req, res) => {
@@ -139,7 +116,7 @@ export const acknowledgeDailyReport = async (req, res) => {
       title: 'Daily report acknowledged',
       message: `Your daily report for ${report.report_date} was acknowledged by your manager.`,
       type: 'report',
-      link: '/daily-reports'
+      link: '/daily-report',
     });
 
     return sendSuccess(res, 200, 'Report acknowledged.', report);
