@@ -1,5 +1,7 @@
 import express from 'express';
 import adminController from '../Controllers/adminController.js';
+import { getAllDocuments, reviewDocument } from '../Controllers/internDocument.controller.js';
+import { getAllProfileChangeRequests, approveProfileChange, rejectProfileChange } from '../Controllers/profileChangeRequest.controller.js';
 
 // ─────────────────────────────────────────────────────
 // 🔧 DEVELOPMENT: using mock auth (no login needed)
@@ -31,6 +33,15 @@ router.patch('/trainees/:id/assign-manager', authenticate, requireAdmin, adminCo
 router.put('/trainees/:id/assign-manager', authenticate, requireAdmin, adminController.assignManager);
 router.patch('/interns/:id/assign-manager', authenticate, requireAdmin, adminController.assignManager);
 router.put('/interns/:id/assign-manager', authenticate, requireAdmin, adminController.assignManager);
+
+// Document Verification
+router.get('/documents', authenticate, requireAdmin, getAllDocuments);
+router.patch('/documents/:id/review', authenticate, requireAdmin, reviewDocument);
+
+// Profile Change Requests
+router.get('/profile-changes', authenticate, requireAdmin, getAllProfileChangeRequests);
+router.patch('/profile-changes/:id/approve', authenticate, requireAdmin, approveProfileChange);
+router.patch('/profile-changes/:id/reject', authenticate, requireAdmin, rejectProfileChange);
 
 // Roles (for dropdowns in frontend)
 router.get('/roles', authenticate, requireAdmin, adminController.getRoles);

@@ -71,7 +71,7 @@ class ExpressServer {
   registerStaticRoutes() {
     this.app.get("/api/uploads/:type/:id/:filename", (req, res) => {
       const { type, id, filename } = req.params;
-      const allowedTypes = ["tickets", "task-submissions", "profiles"];
+      const allowedTypes = ["tickets", "task-submissions", "profiles", "intern-documents"];
 
       if (!allowedTypes.includes(type)) {
         return res.status(400).json({

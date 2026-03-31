@@ -23,7 +23,7 @@ const Trainee = sequelize.define('trainees', {
   },
   expected_end_date: DataTypes.DATEONLY,
   current_status: {
-    type: DataTypes.ENUM('active','completed','on_leave','terminated'),
+    type: DataTypes.ENUM('active', 'pending_approval', 'completed', 'on_leave', 'terminated'),
     defaultValue: 'active'
   },
   gpa: DataTypes.DECIMAL(3,2),

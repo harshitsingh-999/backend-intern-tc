@@ -116,20 +116,19 @@ export const getAttendanceHistory = async (req, res) => {
   try {
     const trainee = await Trainee.findOne({ where: { user_id: req.user.id } });
 
-    // Managers don't have a trainee record — return empty array gracefully
     if (!trainee) {
       return res.status(200).json({ success: true, data: [] });
     }
 
     const records = await Attendance.findAll({
-      where: { trainee_id: trainee.id },
-      order: [["attendance_date", "DESC"]],
-      limit: 30,
+      where: { trainee_id: trainee.id },      // ← fetches ALL statuses including pending_leave, on_leave
+      order: [['attendance_date', 'DESC']],
+      limit: 60,                              // ← increase from 30 to 60 so leaves show
     });
 
     return res.status(200).json({ success: true, data: records });
   } catch (error) {
     logger.error(error);
-    return res.status(500).json({ success: false, message: "Internal Server Error" });
+    return res.status(500).json({ success: false, message: 'Internal Server Error' });
   }
 };

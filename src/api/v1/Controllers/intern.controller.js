@@ -9,6 +9,7 @@ import rootPath from "../../../helper/rootPath.js";
 import Trainee    from "../Models/trainee.js";
 import Evaluation from "../Models/evaluation.js";
 import { sendTaskSubmittedEmail } from "../../../utils/sendEmail.js";
+import { createNotification } from "./notification.controller.js";
 
 const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024;
 
@@ -183,56 +184,97 @@ export const getMyProfile = async (req, res) => {
 };
 
 // PUT /api/v1/intern/profile
+// ⚠️ UPDATED: Academic info changes now require admin approval
 export const updateMyProfile = async (req, res) => {
   try {
+    const { createNotification } = await import('./notification.controller.js');
+    const ProfileChangeRequest = (await import('../Models/profileChangeRequest.js')).default;
+    
     const {
       phone, address,
       college_name, course, batch_year,
       enrollment_date, expected_end_date,
       gpa, certifications,
+      name
     } = req.body;
 
-    await User.update(
-      {
-        ...(phone   !== undefined && { phone }),
-        ...(address !== undefined && { address }),
-      },
-      { where: { id: req.user.id } }
-    );
+    // Direct updates (no approval needed)
+    const directUserUpdates = {};
+    if (phone !== undefined) directUserUpdates.phone = phone;
+    if (address !== undefined) directUserUpdates.address = address;
+    if (phone !== undefined || address !== undefined) {
+      await User.update(directUserUpdates, { where: { id: req.user.id } });
+    }
+
+    // Academic/Sensitive updates (require approval) 
+    const sensitiveChanges = {
+      ...(college_name !== undefined && { college_name }),
+      ...(course !== undefined && { course }),
+      ...(batch_year !== undefined && { batch_year }),
+      ...(enrollment_date !== undefined && { enrollment_date }),
+      ...(expected_end_date !== undefined && { expected_end_date }),
+      ...(gpa !== undefined && { gpa }),
+      ...(certifications !== undefined && { certifications }),
+    };
 
     const existingTrainee = await Trainee.findOne({ where: { user_id: req.user.id } });
 
-    const traineeData = {
-      ...(college_name      !== undefined && { college_name }),
-      ...(course            !== undefined && { course }),
-      ...(batch_year        !== undefined && { batch_year: batch_year ? Number(batch_year) : null }),
-      ...(enrollment_date   !== undefined && { enrollment_date }),
-      ...(expected_end_date !== undefined && { expected_end_date }),
-      ...(gpa               !== undefined && { gpa }),
-      ...(certifications    !== undefined && { certifications }),
-    };
+    // If there are sensitive changes, create approval request
+    if (Object.keys(sensitiveChanges).length > 0) {
+      // Get old values
+      let old_values = {};
+      if (existingTrainee) {
+        old_values = {
+          college_name: existingTrainee.college_name,
+          course: existingTrainee.course,
+          gpa: existingTrainee.gpa
+        };
+      }
 
-    let trainee;
-    if (existingTrainee) {
-      await existingTrainee.update(traineeData);
-      trainee = existingTrainee;
-    } else {
-      trainee = await Trainee.create({
+      // Create profile change request
+      await ProfileChangeRequest.create({
         user_id: req.user.id,
-        current_status: "pending_approval",
-        enrollment_date: enrollment_date || new Date().toISOString().split("T")[0],
-        ...traineeData,
+        change_type: 'academic_info',
+        old_values,
+        new_values: sensitiveChanges,
+        status: 'pending'
       });
+
+      // Notify admins
+      const admins = await User.findAll({
+        where: { role_id: [1, 5], is_active: 1 },
+        attributes: ['id']
+      });
+
+      await Promise.all(
+        admins.map((admin) => createNotification({
+          user_id: admin.id,
+          title: 'Academic Profile Update Request',
+          message: `${req.user.name} requested to update academic information.`,
+          type: 'profile_update',
+          link: '/admin/profile-changes'
+        }))
+      );
+    }
+
+    // Get updated profile
+    const updatedUser = await User.findByPk(req.user.id, {
+      attributes: ["id", "name", "email", "phone", "address", "role_id", "profile_picture"],
+    });
+
+    let trainee = existingTrainee;
+    if (existingTrainee) {
+      await trainee.reload();
     }
 
     return res.status(200).json({
       success: true,
-      message: "Profile updated successfully",
+      message: Object.keys(sensitiveChanges).length > 0 
+        ? "Profile updated. Academic changes require admin approval."
+        : "Profile updated successfully",
       data: {
-        user: await User.findByPk(req.user.id, {
-          attributes: ["id", "name", "email", "phone", "address", "role_id", "profile_picture"],
-        }),
-        trainee: trainee.toJSON(),
+        user: updatedUser.toJSON(),
+        trainee: trainee ? trainee.toJSON() : null,
       },
     });
   } catch (error) {
@@ -297,6 +339,25 @@ export const applyLeave = async (req, res) => {
         return res.status(400).json({ success: false, message: "You have already checked in on this date" });
       }
       await existing.update({ status: 'pending_leave', leave_reason: leave_reason || null, leave_type, remarks: null });
+
+      if (trainee.manager_id) {
+        await createNotification({
+          user_id: trainee.manager_id,
+          title: 'New leave request',
+          message: `${req.user.name} submitted a ${leave_type} leave request for ${leave_date}.`,
+          type: 'leave',
+          link: '/attendance'
+        });
+      }
+
+      await createNotification({
+        user_id: req.user.id,
+        title: 'Leave request submitted',
+        message: `Your ${leave_type} leave request for ${leave_date} was submitted to your manager.`,
+        type: 'leave',
+        link: '/my-leaves'
+      });
+
       return res.status(200).json({ success: true, message: "Leave request submitted for approval", data: existing });
     }
 
@@ -306,6 +367,24 @@ export const applyLeave = async (req, res) => {
       status: 'pending_leave',
       leave_reason: leave_reason || null,
       leave_type,
+    });
+
+    if (trainee.manager_id) {
+      await createNotification({
+        user_id: trainee.manager_id,
+        title: 'New leave request',
+        message: `${req.user.name} submitted a ${leave_type} leave request for ${leave_date}.`,
+        type: 'leave',
+        link: '/attendance'
+      });
+    }
+
+    await createNotification({
+      user_id: req.user.id,
+      title: 'Leave request submitted',
+      message: `Your ${leave_type} leave request for ${leave_date} was submitted to your manager.`,
+      type: 'leave',
+      link: '/my-leaves'
     });
 
     return res.status(201).json({ success: true, message: "Leave request submitted for approval", data: record });
@@ -364,6 +443,17 @@ export const cancelLeave = async (req, res) => {
     }
 
     await record.destroy();
+
+    if (trainee.manager_id) {
+      await createNotification({
+        user_id: trainee.manager_id,
+        title: 'Leave request cancelled',
+        message: `${req.user.name} cancelled the leave request for ${record.attendance_date}.`,
+        type: 'leave',
+        link: '/attendance'
+      });
+    }
+
     return res.status(200).json({ success: true, message: "Leave request cancelled successfully" });
   } catch (error) {
     logger.error(error);

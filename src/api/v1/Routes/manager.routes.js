@@ -26,6 +26,7 @@ import {
   getInternAttendance,
   deleteProject,
 } from "../Controllers/manager.controller.js";
+import { getInternDailyReports, acknowledgeDailyReport } from '../Controllers/dailyreport.controller.js';
 
 const router = express.Router();
 
@@ -55,10 +56,13 @@ router.put("/trainees/:id/assign-manager", assignSelfAsManager);
 router.patch("/trainees/:id/assign-manager", assignSelfAsManager);
 router.get("/interns/:trainee_user_id/attendance", getInternAttendance);
 
+
 // Project routes (DB table = 'projects', UI label = 'Task' context)
 router.get("/projects", getMyProjects);
 router.post("/projects", createProject);
 router.delete("/projects/:id", deleteProject);
 router.get("/project-progress", getProjectProgress);
+router.get('/daily-reports', getInternDailyReports);
+router.patch('/daily-reports/:id/acknowledge', acknowledgeDailyReport);
 
 export default router;

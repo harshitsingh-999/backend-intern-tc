@@ -56,4 +56,29 @@ const upload = multer({
     limits: { fileSize: 5 * 1024 * 1024 } // 5MB
 });
 
+export const uploadDocument = multer({
+  storage: multer.diskStorage({
+    destination: (req, file, cb) => {
+      if (!req.user?.id) {
+        return cb(new Error("Unauthorized for document upload"));
+      }
+
+      const destPath = path.join(rootPath, "uploads", "intern-documents", String(req.user.id));
+
+      if (!fs.existsSync(destPath)) {
+        fs.mkdirSync(destPath, { recursive: true });
+      }
+
+      cb(null, destPath);
+    },
+    filename: (req, file, cb) =>
+      cb(null, `${Date.now()}-${file.originalname.replace(/\s+/g, '_')}`),
+  }),
+  fileFilter: (req, file, cb) => {
+    const allowed = /pdf|jpg|jpeg|png/;
+    cb(null, allowed.test(path.extname(file.originalname).toLowerCase()));
+  },
+  limits: { fileSize: 5 * 1024 * 1024 },
+});
+
 export default upload;

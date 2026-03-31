@@ -1,5 +1,5 @@
-import jwt from "jsonwebtoken";
 import User from "../api/v1/Models/user.js";
+import { verifyAccessToken } from "../utils/authTokens.js";
 
 export const authenticate = async (req, res, next) => {
   try {
@@ -16,7 +16,7 @@ export const authenticate = async (req, res, next) => {
       });
     }
 
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const decoded = verifyAccessToken(token);
 
     const user = await User.findByPk(decoded.id, {
       attributes: ["id", "name", "email", "role_id", "is_active"]
@@ -36,12 +36,16 @@ export const authenticate = async (req, res, next) => {
       email: user.email,
       role_id: user.role_id
     };
+    req.auth = {
+      accessTokenExpiresAt: decoded?.exp ? new Date(decoded.exp * 1000).toISOString() : null
+    };
 
     next();
   } catch (err) {
     return res.status(401).json({
       success: false,
-      message: "Token invalid or expired"
+      code: err?.name === "TokenExpiredError" ? "TOKEN_EXPIRED" : "TOKEN_INVALID",
+      message: err?.name === "TokenExpiredError" ? "Access token expired" : "Token invalid or expired"
     });
   }
 };

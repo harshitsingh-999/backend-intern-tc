@@ -5,6 +5,16 @@ import Role from './role.js';
 import Department from './department.js';
 
 const User = sequelize.define('users', {
+  password_reset_token: {
+  type: DataTypes.STRING,
+  allowNull: true,
+  defaultValue: null,
+},
+password_reset_expires: {
+  type: DataTypes.DATE,
+  allowNull: true,
+  defaultValue: null,
+},
   id: {
     type: DataTypes.INTEGER,
     autoIncrement: true,
@@ -39,9 +49,13 @@ const User = sequelize.define('users', {
     type: DataTypes.STRING(255),
     allowNull: true
   }
+  
 }, {
   timestamps: true
-});
+}
+);
+
+
 
 // User.belongsTo(Role, { foreignKey: 'role_id' });
 // User.belongsTo(Department, { foreignKey: 'dept_id' });

@@ -8,6 +8,7 @@ import TaskSubmission from "../Models/taskSubmission.js";
 import logger from "../../../helper/logger.js";
 import Evaluation from "../Models/evaluation.js";
 import { sendTaskAssignedEmail } from "../../../utils/sendEmail.js";
+import { createNotification } from "./notification.controller.js";
 
 // GET /api/v1/manager/interns - interns mapped to logged-in manager
 export const getMyInterns = async (req, res) => {
@@ -300,6 +301,14 @@ export const assignLeave = async (req, res) => {
       await record.update({ status: "on_leave", remarks: remarks || "Leave approved by manager" });
     }
 
+    await createNotification({
+      user_id: trainee.user_id,
+      title: "Leave assigned",
+      message: `Your manager marked ${leave_date} as on leave.`,
+      type: "leave",
+      link: "/attendance"
+    });
+
     return res.status(200).json({
       success: true,
       message: `Leave assigned for ${leave_date}`,
@@ -322,7 +331,10 @@ export const getInternLeaves = async (req, res) => {
     }
 
     const leaves = await Attendance.findAll({
-      where: { trainee_id: trainee.id, status: "on_leave" },
+      where: {
+        trainee_id: trainee.id,
+        status: ["pending_leave", "on_leave", "leave_rejected"]
+      },
       order: [["attendance_date", "DESC"]]
     });
 
@@ -434,6 +446,16 @@ export const respondToLeaveRequest = async (req, res) => {
       remarks: remarks || (action === 'approve' ? 'Approved by manager' : 'Rejected by manager'),
     });
 
+    await createNotification({
+      user_id: trainee.user_id,
+      title: action === 'approve' ? 'Leave approved' : 'Leave rejected',
+      message: action === 'approve'
+        ? `Your leave request for ${record.attendance_date} was approved.`
+        : `Your leave request for ${record.attendance_date} was rejected.`,
+      type: 'leave',
+      link: '/my-leaves'
+    });
+
     return res.status(200).json({
       success: true,
       message: action === 'approve' ? 'Leave approved' : 'Leave rejected',
@@ -539,6 +561,15 @@ export const createProject = async (req, res) => {
       dept_id: dept_id || null,
       manager_id: req.user.id,
     });
+
+    await createNotification({
+      user_id: req.user.id,
+      title: 'Project created',
+      message: `Project "${project.project_name}" was created successfully.`,
+      type: 'project',
+      link: '/project-progress'
+    });
+
     return res.status(201).json({ success: true, message: 'Project created', data: project });
   } catch (error) {
     logger.error(error);
@@ -701,10 +732,21 @@ export const deleteProject = async (req, res) => {
       return res.status(404).json({ success: false, message: "Project not found or not yours" });
     }
 
+    const projectName = project.project_name;
+
     // Delete tasks associated with this project first
     await Task.destroy({ where: { project_id: project.id } });
 
     await project.destroy();
+
+    await createNotification({
+      user_id: req.user.id,
+      title: 'Project deleted',
+      message: `Project "${projectName}" and its tasks were deleted.`,
+      type: 'project',
+      link: '/project-progress'
+    });
+
     return res.status(200).json({ success: true, message: "Project and its tasks deleted successfully" });
   } catch (error) {
     logger.error(error);

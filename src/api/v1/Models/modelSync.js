@@ -10,6 +10,9 @@ import "./evaluation.js";
 import "./feedback.js";
 import "./taskSubmission.js";
 import "./systemSetting.js";
+import "./dailyreports.js";
+import "./internDocument.js";
+import "./notification.js";
 import sequelize from "../../../config/db.config.js";
 
 const ensureTaskStatusEnum = async () => {
