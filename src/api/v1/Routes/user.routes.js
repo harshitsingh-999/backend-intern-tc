@@ -1,6 +1,7 @@
 
 import express from "express";
 import { registerUser, loginUser, getUserStats, forgotPassword, resetPassword, uploadProfile } from "../Controllers/user.controller.js";
+import adminUserController from "../Controllers/admin.user.controller.js";
 import { authenticate } from "../../../middlewares/auth.middleware.js";
 import { requireManager, requireAdmin } from "../../../middlewares/role.middleware.js";
 import upload from "../../../middlewares/upload.js";
@@ -18,14 +19,9 @@ router.post("/upload-profile", authenticate, upload.single("image"), uploadProfi
 router.get("/stats", authenticate, getUserStats);
 
 // Protected: Manager + Admin can list all users
-router.get("/", authenticate, requireManager, async (req, res) => {
-  // Placeholder — you'll move this to a controller later
-  return res.status(200).json({ success: true, message: "User list (manager view)" });
-});
+router.get("/", authenticate, requireManager, adminUserController.getAllUsers);
 
-// Protected: Admin only
-router.delete("/:id", authenticate, requireAdmin, async (req, res) => {
-  return res.status(200).json({ success: true, message: `Delete user ${req.params.id} (admin only)` });
-});
+// Protected: Admin only - delete user
+router.delete("/:id", authenticate, requireAdmin, adminUserController.deleteUser);
 
 export default router;

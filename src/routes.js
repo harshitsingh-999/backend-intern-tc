@@ -11,6 +11,7 @@ import notificationRoutes from './api/v1/Routes/notification.routes.js';
 import documentRoutes from './api/v1/Routes/internDocument.routes.js';
 import dailyReportRoutes from './api/v1/Routes/dailyreport.routes.js' 
 import profileChangeRoutes from './api/v1/Routes/profileChangeRequest.routes.js';
+import leaveRoutes from './api/v1/Routes/leave.routes.js';
 
 const routes = (app) => {
   app.use("/api/v1/auth",       authRoutes);
@@ -24,6 +25,7 @@ const routes = (app) => {
   app.use('/api/v1/documents', documentRoutes);
   app.use('/api/v1/daily-reports', dailyReportRoutes);
   app.use('/api/v1/profile-changes', profileChangeRoutes);
+  app.use('/api/v1/leaves', leaveRoutes);
 
   // admin/users must come BEFORE generic /admin
   // so the adminUserRoutes controller (paginated, full-featured) handles user CRUD

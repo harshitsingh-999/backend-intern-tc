@@ -13,9 +13,19 @@ import Feedback from './feedback.js';
 import DailyReport from './dailyreports.js';
 import InternDocument from './internDocument.js';
 import ProfileChangeRequest from './profileChangeRequest.js';
+import Leave from './leave.js';
+import LeaveBalance from './leaveBalance.js';
 
 const setupAssociations = () => {
 
+// ===== LEAVE RELATIONS =====
+Leave.belongsTo(Trainee, { foreignKey: 'trainee_id' });
+Trainee.hasMany(Leave, { foreignKey: 'trainee_id' });
+
+Leave.belongsTo(User, { as: 'approver', foreignKey: 'approved_by' });
+
+LeaveBalance.belongsTo(Trainee, { foreignKey: 'trainee_id' });
+Trainee.hasMany(LeaveBalance, { foreignKey: 'trainee_id' });
 
 InternDocument.belongsTo(User, { as: 'intern', foreignKey: 'user_id' });
 User.hasMany(InternDocument, { foreignKey: 'user_id' });
