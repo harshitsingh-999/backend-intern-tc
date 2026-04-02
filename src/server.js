@@ -9,3 +9,5 @@ db.query('SELECT 1')
     console.error('❌ Error: Database connection failed!', err.message);
     console.log('Check your .env file and Network Access settings.');
   });
+
+  db.UpdateRequest = require("./UpdateRequest")(sequelize, DataTypes);

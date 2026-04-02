@@ -36,8 +36,15 @@ class AdminUserController {
         ],
       } : {};
 
+      // FIX 9: exclude soft-deleted users (email prefixed with 'deleted_')
+      const softDeleteFilter = { email: { [Op.notLike]: 'deleted\\_%' } };
+
+      const whereWithExclusion = search
+        ? { [Op.and]: [softDeleteFilter, whereClause] }
+        : softDeleteFilter;
+
       const { count, rows } = await User.findAndCountAll({
-        where: whereClause,
+        where: whereWithExclusion,
         include: [
           { model: Role, attributes: ['id', 'role_name'] },
           { model: Department, attributes: ['id', 'dept_name'] },
@@ -333,7 +340,7 @@ class AdminUserController {
     }
   }
 
-  // DELETE USER
+  // DELETE USER — FIX 5: handle FK constraint with soft-delete fallback
   async deleteUser(req, res) {
     try {
       const { id } = req.params;
@@ -351,12 +358,21 @@ class AdminUserController {
         return responseEmmiter(res, { status: 404, message: 'User not found' });
       }
 
-      await user.destroy();
+      try {
+        await user.destroy();
+      } catch (destroyErr) {
+        // FK constraint — soft-delete instead so admin list hides the user (FIX 9)
+        logger.warn(`Hard delete failed for user ${id} (FK constraint), soft-deleting: ${destroyErr.message}`);
+        await user.update({
+          is_active: 0,
+          email: `deleted_${id}_${Date.now()}_${user.email}`,
+        });
+      }
 
       return responseEmmiter(res, {
-        status: 204,
-        message: 'User deleted successfully',
-        data: null,
+        status: 200,
+        message: 'User removed successfully',
+        data: { id: parseInt(id) },
       });
     } catch (error) {
       logger.error(error);

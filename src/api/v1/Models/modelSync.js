@@ -13,6 +13,9 @@ import "./systemSetting.js";
 import "./dailyreports.js";
 import "./internDocument.js";
 import "./notification.js";
+import "./profileChangeRequest.js";
+import "./leave.js";
+import "./leaveBalance.js";
 import sequelize from "../../../config/db.config.js";
 import { DataTypes } from "sequelize";
 
