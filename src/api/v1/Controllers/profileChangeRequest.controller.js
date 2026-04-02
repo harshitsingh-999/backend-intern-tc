@@ -60,7 +60,7 @@ export const requestProfileChange = async (req, res) => {
         title: 'Profile Update Request',
         message: `${req.user.name} requested to update their ${change_type.replace(/_/g, ' ')}.`,
         type: 'profile_update',
-        link: `/admin/profile-changes/${request.id}`
+        link: `/admin/documents?tab=profiles`
       }))
     );
 
@@ -143,7 +143,7 @@ export const approveProfileChange = async (req, res) => {
     }
 
     // Update request status
-    request.status = 'approved';
+    request.status = 'completed';
     request.reviewed_by = req.user.id;
     request.reviewed_at = new Date();
     request.admin_note = admin_note || null;
