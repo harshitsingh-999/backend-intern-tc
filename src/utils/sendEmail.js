@@ -102,8 +102,28 @@ const buildEmailLayout = ({ heading, intro, details = [], ctaLabel, ctaHref, foo
 
 const isEmailConfigured = () => Boolean(process.env.EMAIL_USER && process.env.EMAIL_PASS);
 
-export const sendEmail = async (to, subject, html) => {
-  if (!to) {
+const normalizeEmailPayload = (toOrOptions, subject, html) => {
+  if (typeof toOrOptions === "object" && toOrOptions !== null) {
+    return {
+      to: toOrOptions.to || toOrOptions.toEmail || "",
+      subject: toOrOptions.subject || "",
+      html: toOrOptions.html || "",
+      text: toOrOptions.text || ""
+    };
+  }
+
+  return {
+    to: toOrOptions || "",
+    subject: subject || "",
+    html: html || "",
+    text: ""
+  };
+};
+
+export const sendEmail = async (toOrOptions, subject, html) => {
+  const payload = normalizeEmailPayload(toOrOptions, subject, html);
+
+  if (!payload.to) {
     logger.warn("Skipping email because recipient address is missing");
     return false;
   }
@@ -114,17 +134,31 @@ export const sendEmail = async (to, subject, html) => {
   }
 
   try {
-    await transporter.sendMail({
+    const mailOptions = {
       from: `"Intern Management" <${process.env.EMAIL_USER}>`,
-      to,
-      subject,
-      html
-    });
+      to: payload.to,
+      subject: payload.subject
+    };
 
-    logger.info(`Email sent to ${to} with subject "${subject}"`);
+    if (payload.html) {
+      mailOptions.html = payload.html;
+    }
+
+    if (payload.text) {
+      mailOptions.text = payload.text;
+    }
+
+    if (!mailOptions.html && !mailOptions.text) {
+      logger.warn(`Skipping email to ${payload.to} because no html or text content was provided`);
+      return false;
+    }
+
+    await transporter.sendMail(mailOptions);
+
+    logger.info(`Email sent to ${payload.to} with subject "${payload.subject}"`);
     return true;
   } catch (error) {
-    logger.error(`Email error for ${to}: ${error.message}`);
+    logger.error(`Email error for ${payload.to}: ${error.message}`);
     return false;
   }
 };
