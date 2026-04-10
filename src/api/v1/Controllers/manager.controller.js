@@ -388,7 +388,7 @@ export const getPendingLeaveRequests = async (req, res) => {
       where: { manager_id: req.user.id },
       include: [{ model: User, attributes: ['id', 'name', 'email'] }]
     });
-
+///////limit to pending_leave status and order by date ascending and how many can manager see in one go? maybe 20 at a time with pagination if needed
     if (!trainees.length) {
       return res.status(200).json({ success: true, data: [] });
     }
