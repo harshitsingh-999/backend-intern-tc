@@ -3,6 +3,7 @@ import { Op } from 'sequelize';
 import User from '../Models/user.js';
 import Role from '../Models/role.js';
 import Department from '../Models/department.js';
+import Trainee from '../Models/trainee.js';
 import responseEmmiter from '../../../helper/response.js';
 import logger from '../../../helper/logger.js';
 import { sendEmail } from '../../../utils/sendEmail.js';
@@ -18,6 +19,28 @@ import {
   parsePositiveInteger,
   toTrimmedString,
 } from '../../../validators/validators.js';
+
+const todayISO = () => new Date().toISOString().slice(0, 10);
+
+const normalizeTraineePayload = (body) => {
+  const enrollment_date = body.internship_start || body.internship_start_date || body.startDate || body.enrollment_date;
+  const expected_end_date = body.internship_end || body.internship_end_date || body.endDate || body.expected_end_date;
+  const manager_id = body.manager_id === '' || body.manager_id === null ? null : body.manager_id !== undefined ? Number(body.manager_id) : undefined;
+  const buddy_id = body.buddy_id === '' || body.buddy_id === null ? null : body.buddy_id !== undefined ? Number(body.buddy_id) : undefined;
+  const payload = {};
+
+  if (enrollment_date !== undefined) payload.enrollment_date = enrollment_date || null;
+  if (expected_end_date !== undefined) payload.expected_end_date = expected_end_date || null;
+  if (manager_id !== undefined) payload.manager_id = manager_id;
+  if (buddy_id !== undefined) payload.buddy_id = buddy_id;
+  if (payload.expected_end_date && payload.expected_end_date >= todayISO()) {
+    payload.current_status = 'active';
+  }
+
+  return payload;
+};
+
+const isInternOrTraineeRole = (roleId) => [3, 4].includes(Number(roleId));
 
 class AdminUserController {
 
@@ -66,7 +89,6 @@ class AdminUserController {
 
       return responseEmmiter(res, {
         status: 200,
-        error: true,
         message: 'Users fetched successfully',
         data: {
           total: count,
@@ -112,7 +134,6 @@ class AdminUserController {
 
       return responseEmmiter(res, {
         status: 200,
-        error: true,
         message: 'User fetched successfully',
         data: userData,
       });
@@ -154,7 +175,7 @@ class AdminUserController {
     if (!isValidPassword(normalizedPassword)) {
       return responseEmmiter(res, {
         status: 400,
-        message: 'Password must include @, !, 1 and 2',
+        message: 'Password must be at least 8 characters long and include uppercase, lowercase, number, and special character',
       });
     }
 
@@ -209,10 +230,21 @@ class AdminUserController {
       is_active: parsedIsActive !== undefined ? parsedIsActive : 1,
     });
 
+    if (isInternOrTraineeRole(parsedRoleId)) {
+      const traineePayload = normalizeTraineePayload(req.body);
+      if (Object.keys(traineePayload).length > 0) {
+        await Trainee.create({
+          user_id: user.id,
+          current_status: 'active',
+          ...traineePayload,
+        });
+      }
+    }
+
     await sendEmail(
       normalizedEmail,
       "Internship Portal - Account Created",
-      `Hello ${normalizedName},\n\nYour account has been created successfully by the Admin.\n\nEmail: ${normalizedEmail}\nPassword: ${normalizedPassword}\n\nPlease login and change your password.\nLink: http://localhost:5173/login\n\nThank you.`
+      `Hello ${normalizedName},\n\nYour account has been created successfully by the Admin.\n\nEmail: ${normalizedEmail}\n\nPlease login using the temporary password provided by your admin and change your password immediately.\nLink: http://localhost:5173/login\n\nThank you.`
     );
 
     const { password: _, ...userData } = user.toJSON();
@@ -326,6 +358,24 @@ class AdminUserController {
       }
 
       await user.update(updateData);
+
+      const finalRoleId = Number(updateData.role_id ?? user.role_id);
+      if (isInternOrTraineeRole(finalRoleId)) {
+        const traineePayload = normalizeTraineePayload(req.body);
+        const existingTrainee = await Trainee.findOne({ where: { user_id: user.id } });
+
+        if (existingTrainee) {
+          if (Object.keys(traineePayload).length > 0) {
+            await existingTrainee.update(traineePayload);
+          }
+        } else if (Object.keys(traineePayload).length > 0) {
+          await Trainee.create({
+            user_id: user.id,
+            current_status: 'active',
+            ...traineePayload,
+          });
+        }
+      }
 
       const { password: _, ...userData } = user.toJSON();
 

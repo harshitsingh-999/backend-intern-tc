@@ -33,6 +33,7 @@ router.patch('/trainees/:id/assign-manager', authenticate, requireAdmin, adminCo
 router.put('/trainees/:id/assign-manager', authenticate, requireAdmin, adminController.assignManager);
 router.patch('/interns/:id/assign-manager', authenticate, requireAdmin, adminController.assignManager);
 router.put('/interns/:id/assign-manager', authenticate, requireAdmin, adminController.assignManager);
+router.patch('/trainees/:id/extend', authenticate, requireAdmin, adminController.extendTrainee);
 
 // Document Verification
 router.get('/documents', authenticate, requireAdmin, getAllDocuments);

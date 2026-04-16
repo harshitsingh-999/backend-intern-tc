@@ -57,7 +57,7 @@ password_reset_expires: {
 
 
 
-// User.belongsTo(Role, { foreignKey: 'role_id' });
-// User.belongsTo(Department, { foreignKey: 'dept_id' });
+User.belongsTo(Role, { foreignKey: 'role_id' });
+User.belongsTo(Department, { foreignKey: 'dept_id' });
 
 export default User;

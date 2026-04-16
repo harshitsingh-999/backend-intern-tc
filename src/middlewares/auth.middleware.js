@@ -1,4 +1,5 @@
 import User from "../api/v1/Models/user.js";
+import Trainee from "../api/v1/Models/trainee.js";
 import { verifyAccessToken } from "../utils/authTokens.js";
 
 export const authenticate = async (req, res, next) => {
@@ -47,5 +48,36 @@ export const authenticate = async (req, res, next) => {
       code: err?.name === "TokenExpiredError" ? "TOKEN_EXPIRED" : "TOKEN_INVALID",
       message: err?.name === "TokenExpiredError" ? "Access token expired" : "Token invalid or expired"
     });
+  }
+};
+
+export const checkInternExpiry = async (req, res, next) => {
+  try {
+    if (!req.user || Number(req.user.role_id) !== 4) {
+      return next();
+    }
+
+    const trainee = await Trainee.findOne({
+      where: { user_id: req.user.id },
+      attributes: ['expected_end_date', 'current_status']
+    });
+
+    if (!trainee) {
+      return res.status(404).json({ success: false, message: 'Trainee profile not found' });
+    }
+
+    const todayISO = new Date().toISOString().slice(0, 10);
+    const endDate = trainee.expected_end_date || null;
+
+    if (endDate && endDate < todayISO) {
+      return res.status(403).json({
+        success: false,
+        message: 'Your internship period has ended. Please contact Admin or SuperAdmin to extend your duration.'
+      });
+    }
+
+    next();
+  } catch (error) {
+    return res.status(500).json({ success: false, message: 'Unable to verify trainee expiration', error: error.message });
   }
 };

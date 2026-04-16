@@ -1,5 +1,5 @@
 import express from "express";
-import { authenticate } from "../../../middlewares/auth.middleware.js";
+import { authenticate, checkInternExpiry } from "../../../middlewares/auth.middleware.js";
 import { requireRole } from "../../../middlewares/role.middleware.js";
 import { getMyAssignedTasks, submitAssignedTask, getMyEvaluations, getMyProfile, updateMyProfile, getMyRecentSubmissions } from '../Controllers/intern.controller.js'
 import { submitDailyReport, getMyDailyReports } from '../Controllers/dailyreport.controller.js';
@@ -13,10 +13,12 @@ const router = express.Router();
 // Intern-only routes
 router.use(authenticate, requireRole(4));
 
+router.get("/profile", getMyProfile);
+router.use(checkInternExpiry);
+
 router.get("/tasks", getMyAssignedTasks);
 router.post("/tasks/:id/submit", submitAssignedTask);
 router.get("/evaluations", getMyEvaluations);
-router.get("/profile", getMyProfile);
 router.put("/profile", updateMyProfile);
 router.get("/profile-changes", getMyProfileChangeRequests);
 // Leave routes have been moved to /api/v1/leaves

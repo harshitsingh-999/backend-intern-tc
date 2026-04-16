@@ -278,6 +278,71 @@ const assignManager = async (req, res) => {
   }
 };
 
+const resolveTraineeParam = async (id) => {
+  const rawId = String(id || '').trim();
+  if (rawId.startsWith('user-')) {
+    const userId = Number(rawId.slice(5));
+    if (!Number.isInteger(userId)) throw new Error('Invalid intern identifier');
+    return await Trainee.findOne({ where: { user_id: userId } });
+  }
+
+  if (/^\d+$/.test(rawId)) {
+    const trainee = await Trainee.findByPk(Number(rawId));
+    if (trainee) return trainee;
+    return await Trainee.findOne({ where: { user_id: Number(rawId) } });
+  }
+
+  throw new Error('Invalid intern identifier');
+};
+
+const extendTrainee = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { expected_end_date, extension_days } = req.body;
+
+    if (!expected_end_date && !extension_days) {
+      return res.status(400).json({ success: false, message: 'expected_end_date or extension_days is required' });
+    }
+
+    const trainee = await resolveTraineeParam(id);
+    if (!trainee) {
+      return res.status(404).json({ success: false, message: 'Intern not found' });
+    }
+
+    let newEndDate;
+    if (expected_end_date) {
+      newEndDate = new Date(expected_end_date);
+    } else {
+      const todayISO = new Date().toISOString().slice(0, 10);
+      const baseDate = trainee.expected_end_date && trainee.expected_end_date > todayISO
+        ? new Date(trainee.expected_end_date)
+        : new Date();
+      const days = Number(extension_days);
+      if (!Number.isInteger(days) || days <= 0) {
+        return res.status(400).json({ success: false, message: 'extension_days must be a positive integer' });
+      }
+      newEndDate = new Date(baseDate);
+      newEndDate.setDate(newEndDate.getDate() + days);
+    }
+
+    if (Number.isNaN(newEndDate.getTime())) {
+      return res.status(400).json({ success: false, message: 'Invalid expected_end_date format' });
+    }
+
+    const formattedEndDate = newEndDate.toISOString().slice(0, 10);
+    await trainee.update({ expected_end_date: formattedEndDate, current_status: 'active' });
+    await trainee.reload();
+
+    res.json({ success: true, message: `Internship extended until ${formattedEndDate}`, data: trainee });
+  } catch (error) {
+    logger.error(error);
+    if (error.message === 'Invalid intern identifier') {
+      return res.status(400).json({ success: false, message: error.message });
+    }
+    res.status(500).json({ success: false, message: 'Error extending internship duration', error: error.message });
+  }
+};
+
 // ─────────────────────────────────────────────
 // GET ALL ROLES
 // ─────────────────────────────────────────────
@@ -291,7 +356,7 @@ const getRoles = async (req, res) => {
   }
 };
 
-export default { dashboard, getUsers, getUserById, createUser, updateUser, deactivateUser, reactivateUser, assignRole, getTrainees, getRoles, assignManager };
+export default { dashboard, getUsers, getUserById, createUser, updateUser, deactivateUser, reactivateUser, assignRole, getTrainees, getRoles, assignManager, extendTrainee };
 
 
 // import User from '../Models/user.js';

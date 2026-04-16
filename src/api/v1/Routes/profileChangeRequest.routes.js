@@ -1,5 +1,5 @@
 import express from 'express';
-import { authenticate } from '../../../middlewares/auth.middleware.js';
+import { authenticate, checkInternExpiry } from '../../../middlewares/auth.middleware.js';
 import { requireRole, requireAdmin } from '../../../middlewares/role.middleware.js';
 import {
   requestProfileChange,
@@ -12,8 +12,8 @@ import {
 const router = express.Router();
 
 // Intern routes
-router.post('/', authenticate, requireRole(4), requestProfileChange);
-router.get('/my', authenticate, requireRole(4), getMyProfileChangeRequests);
+router.post('/', authenticate, requireRole(4), checkInternExpiry, requestProfileChange);
+router.get('/my', authenticate, requireRole(4), checkInternExpiry, getMyProfileChangeRequests);
 
 // Admin routes
 router.get('/all', authenticate, requireAdmin, getAllProfileChangeRequests);

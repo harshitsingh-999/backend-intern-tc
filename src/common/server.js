@@ -131,10 +131,24 @@ class ExpressServer {
   listen(port) {
     this.server = http.createServer(this.app);
 
-    this.server.listen(port, () => {
-      logger.info(`🚀 Server listening on port ${port}`);
-    });
+    const startServer = (currentPort) => {
+      this.server.listen(currentPort, () => {
+        logger.info(`🚀 Server listening on port ${currentPort}`);
+      });
 
+      this.server.on('error', (err) => {
+        if (err.code === 'EADDRINUSE') {
+          logger.warn(`Port ${currentPort} is busy, trying ${currentPort + 1}`);
+          this.server.close();
+          startServer(currentPort + 1);
+        } else {
+          logger.error('Server error:', err);
+          process.exit(1);
+        }
+      });
+    };
+
+    startServer(port);
     this.server.timeout = 500000;
     return this.server;
   }
