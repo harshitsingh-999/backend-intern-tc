@@ -19,10 +19,12 @@
   "bugs": {
     "url": "https://github.com/harshitsingh-999/backend-intern-tc/issues"
   },
+
   "homepage": "https://github.com/harshitsingh-999/backend-intern-tc#readme",
   "devDependencies": {
     "sequelize-cli": "^6.6.5"
   },
+
   "dependencies": {
     "bcrypt": "^6.0.0",
     "bcryptjs": "^3.0.3",
@@ -41,4 +43,5 @@
     "winston": "^3.19.0",
     "winston-daily-rotate-file": "^5.0.0"
   }
+  
 }

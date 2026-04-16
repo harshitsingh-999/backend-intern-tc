@@ -15,6 +15,7 @@ const PORT = process.env.PORT || 7357;
     startTaskDeadlineReminderJob();
     server.listen(PORT);
     console.log(`Server running on port ${PORT}`);
+    console.log("Environment:", process.env.NODE_ENV || "development");
     console.log("Internship Backend Booting..");
     console.log("Boot Time:", new Date().toISOString());
   } catch (err) {
